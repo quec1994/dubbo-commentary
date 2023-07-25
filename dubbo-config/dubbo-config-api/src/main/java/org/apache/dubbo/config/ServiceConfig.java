@@ -230,11 +230,14 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
     private void checkAndUpdateSubConfigs() {
         // Use default configs defined explicitly with global scope
-        // ServiceConfig中的某些属性如果是空的，那么就从ProviderConfig、ModuleConfig、ApplicationConfig中获取
+        // ServiceConfig中的某些属性如果是空的，那么就从服务里配置的 ProviderConfig、ModuleConfig、ApplicationConfig 中获取
         // 补全ServiceConfig中的属性
         completeCompoundConfigs();
+        // 从启动配置里取provider的配置，或者创建一个默认的
         checkDefault();
+        // 如果服务和provider没有配置协议，取配置的默认协议集合或者protocolIds
         checkProtocol();
+        // 执行自定义的配置初始化逻辑添加属性
         // init some null configuration.
         List<ConfigInitializer> configInitializers = ExtensionLoader.getExtensionLoader(ConfigInitializer.class)
                 .getActivateExtension(URL.valueOf(CONFIG_INITIALIZER_PROTOCOL), (String[]) null);
@@ -348,19 +351,21 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
         // 把dubbo的版本信息和pid放入map中
         ServiceConfig.appendRuntimeParameters(map);
-        // 监控中心参数
+
+        /* 对map里的值做继承和覆盖操作，获取优先级最高最全的参数值 */
+        // 使用监控中心参数覆盖参数值
         AbstractConfig.appendParameters(map, getMetrics());
-        // 应用相关参数
+        // 使用应用相关参数覆盖参数值
         AbstractConfig.appendParameters(map, getApplication());
-        // 模块相关参数
+        // 使用模块相关参数覆盖参数值
         AbstractConfig.appendParameters(map, getModule());
         // remove 'default.' prefix for configs from ProviderConfig
         // appendParameters(map, provider, Constants.DEFAULT_KEY);
-        // 提供者相关参数
+        // 使用提供者相关参数覆盖参数值
         AbstractConfig.appendParameters(map, provider);
-        // 协议相关参数
+        // 使用协议相关参数覆盖参数值
         AbstractConfig.appendParameters(map, protocolConfig);
-        // 服务本身相关参数
+        // 使用服务本身相关参数覆盖参数值
         AbstractConfig.appendParameters(map, this);
 
         MetadataReportConfig metadataReportConfig = getMetadataReportConfig();
@@ -503,10 +508,10 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         Integer port = findConfigedPorts(protocolConfig, name, map, protocolConfigNum);
         // 服务url
         URL url = new URL(name, host, port, getContextPath(protocolConfig).map(p -> p + "/" + path).orElse(path), map);
-        // url：http://192.168.40.17:80/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bean.name=ServiceBean:org.apache.dubbo.demo.DemoService&bind.ip=192.168.40.17&bind.port=80&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello&pid=285072&release=&side=provider&timestamp=1585206500409
+        // url：dubbo://192.168.56.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bind.ip=192.168.56.1&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=2636&release=&service.name=ServiceBean:/org.apache.dubbo.demo.DemoService&side=provider&timestamp=1690360902105
 
         // You can customize Configurator to append extra parameters
-        // 自定义Configurator以附加额外的参数
+        // 可以通过ConfiguratorFactory，对服务url再次进行配置
         if (ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
                 .hasExtension(url.getProtocol())) {
             url = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class)
@@ -569,7 +574,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
                         // 生成一个当前服务接口的代理对象
                         // 使用动态代理生成一个Invoker，Invoker表示服务提供者的代理，可以使用Invoker的invoke方法执行服务
-                        // 对应的url为 registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-annotation-provider&dubbo=2.0.2&export=http%3A%2F%2F192.168.40.17%3A80%2Forg.apache.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddubbo-demo-annotation-provider%26bean.name%3DServiceBean%3Aorg.apache.dubbo.demo.DemoService%26bind.ip%3D192.168.40.17%26bind.port%3D80%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26methods%3DsayHello%26pid%3D19472%26release%3D%26side%3Dprovider%26timestamp%3D1585207994860&pid=19472&registry=zookeeper&timestamp=1585207994828
+                        // 对应的url为 registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-annotation-provider&dubbo=2.0.2&export=dubbo%3A%2F%2F192.168.56.1%3A20880%2Forg.apache.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddubbo-demo-annotation-provider%26bind.ip%3D192.168.56.1%26bind.port%3D20880%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26methods%3DsayHello%2CsayHelloAsync%26pid%3D10984%26release%3D%26service.name%3DServiceBean%3A%2Forg.apache.dubbo.demo.DemoService%26side%3Dprovider%26timestamp%3D1690361577209&id=registryConfig&pid=10984&registry=zookeeper&timestamp=1690361577196
                         // 这个Invoker中包括了服务的实现者、服务接口类、服务的注册地址（针对当前服务的，参数export指定了当前服务）
                         // 此invoker表示一个可执行的服务，调用invoker的invoke()方法即可执行服务,同时此invoker也可用来导出
                         Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass,
@@ -579,9 +584,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
                         // 导出服务
-                        // registry://   ---> RegistryProtocol
-                        // zookeeper://  ---> ZookeeperRegistry
-                        // dubbo://      ---> DubboProtocol
+                        // 到此为止做了哪些事情？ ServiceBean.export()-->刷新ServiceBean的参数-->得到注册中心URL和协议URL-->遍历每个协议URL-->组成服务URL-->生成可执行服务Invoker-->导出服务
 
                         // Protocol接口有3个包装类，一个是ProtocolFilterWrapper、ProtocolListenerWrapper、QosProtocolWrapper，
                         // 所以实际上在调用export方法时，会经过这3个包装类的export方法，
@@ -590,11 +593,11 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
 
                         // 使用特定的协议来对服务进行导出，这里的协议为registry，导出成功后得到一个Exporter
                         // 1. 先使用registry协议对应的InterfaceCompatibleRegistryProtocol进行服务注册
-                        // 2. 注册完了之后，使用DubboProtocol进行导出
-                        // 到此为止做了哪些事情？ ServiceBean.export()-->刷新ServiceBean的参数-->得到注册中心URL和协议URL-->遍历每个协议URL-->组成服务URL-->生成可执行服务Invoker-->导出服务
-
-                        // 这里使用的是registry协议对应的InterfaceCompatibleRegistryProtocol，
-                        // 但是InterfaceCompatibleRegistryProtocol没有覆写export方法，所以调的是父类RegistryProtocol的export方法
+                        //  ，但是InterfaceCompatibleRegistryProtocol没有覆写export方法，所以调的是父类RegistryProtocol的export方法
+                        //      registry://   ---> InterfaceCompatibleRegistryProtocol
+                        //      zookeeper://  ---> ZookeeperRegistry
+                        //      dubbo://      ---> DubboProtocol
+                        // 2. 注册完了之后，在RegistryProtocol的export方法中使用DubboProtocol进行真正的服务导出
                         Exporter<?> exporter = PROTOCOL.export(wrapperInvoker);
                         exporters.add(exporter);
                     }

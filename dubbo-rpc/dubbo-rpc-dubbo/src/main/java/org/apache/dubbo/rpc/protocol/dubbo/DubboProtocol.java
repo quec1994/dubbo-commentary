@@ -287,6 +287,9 @@ public class DubboProtocol extends AbstractProtocol {
         // export service.
         // 服务的 key
         String key = serviceKey(url);
+        // GROUP/PATH:VERSION:PORT
+        // group/org.apache.dubbo.demo.DemoService:version:20880
+
         // DubboExporter类中保存了对应服务的Invoker对象，和当前服务的唯一标志，
         // 当NettyServer接收到请求后，会根据请求中的服务信息，找到服务对应的DubboExporter对象，然后从对象中得到Invoker对象
         // 构造一个Exporter进行服务导出
@@ -319,10 +322,11 @@ public class DubboProtocol extends AbstractProtocol {
 
     private void openServer(URL url) {
         // find server.
-        // 获得ip地址和port， 192.168.40.17:20880
+        // 缓存Server对象的key，服务的ip地址和port
         String key = url.getAddress();
+        // 192.168.56.1:20880
+
         //client can export a service which's only for server to invoke
-        // 客户端可以导出只供服务器调用的服务
         boolean isServer = url.getParameter(IS_SERVER_KEY, true);
         if (isServer) {
             // 缓存Server对象
@@ -402,9 +406,11 @@ public class DubboProtocol extends AbstractProtocol {
             }
 
             for (Class c : optimizer.getSerializableClasses()) {
+                // 注册序列化优化器
                 SerializableClassRegistry.registerClass(c);
             }
 
+            // 特殊的一些序列化机制，比如kryo提供了注册机制来注册类，提高序列化和反序列化的速度
             optimizers.add(className);
 
         } catch (ClassNotFoundException e) {

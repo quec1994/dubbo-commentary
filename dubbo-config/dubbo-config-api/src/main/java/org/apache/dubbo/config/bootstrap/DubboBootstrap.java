@@ -1046,14 +1046,15 @@ public class DubboBootstrap {
             String appGroup = getApplication().getName();
             String appConfigContent = null;
             if (isNotEmpty(appGroup)) {
-                // 获取的就是zookeeper上/dubbo/config/dubbo-demo-provider-application/dubbo.properties节点中的内容
+                // 获取的就是zookeeper上/dubbo/config/dubbo/dubbo-demo-annotation-provider/dubbo.properties节点中的内容
                 appConfigContent = dynamicConfiguration.getProperties
                         (isNotEmpty(configCenter.getAppConfigFile()) ? configCenter.getAppConfigFile() : configCenter.getConfigFile(),
                                 appGroup
                         );
             }
             try {
-                // 判断是否是配置中心的配置优先
+                // 根据配置中心的配置设置是否是配置中心的配置优先
+                // 如果 configCenter 没有配置，是由 registry 转换过来的，那么 highestPriority 的值是 false
                 environment.setConfigCenterFirst(configCenter.isHighestPriority());
                 // 把获取到的配置放入到Environment中的externalConfigurationMap
                 Map<String, String> globalRemoteProperties = parseProperties(configContent);

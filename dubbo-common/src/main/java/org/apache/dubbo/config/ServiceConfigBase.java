@@ -192,6 +192,7 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
 
     public void checkDefault() throws IllegalStateException {
         if (provider == null) {
+            // 如果没有配置provider，从项目启动配置里配置的provider里取一个，没有配置则创建一个默认的provider
             provider = ApplicationModel.getConfigManager()
                     .getDefaultProvider()
                     .orElse(new ProviderConfig());

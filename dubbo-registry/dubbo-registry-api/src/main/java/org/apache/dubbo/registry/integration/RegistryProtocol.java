@@ -149,12 +149,12 @@ public class RegistryProtocol implements Protocol {
         // 将registry://xxx?xx=xx&registry=zookeeper 转为 zookeeper://xxx?xx=xx
         // 调用的是子类 InterfaceCompatibleRegistryProtocol 的 getRegistryUrl 方法
         URL registryUrl = getRegistryUrl(originInvoker);
-        // zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-provider-application&dubbo=2.0.2&export=dubbo%3A%2F%2F192.168.40.17%3A20880%2Forg.apache.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddubbo-demo-provider-application%26bean.name%3DServiceBean%3Aorg.apache.dubbo.demo.DemoService%26bind.ip%3D192.168.40.17%26bind.port%3D20880%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26logger%3Dlog4j%26methods%3DsayHello%26pid%3D27656%26release%3D2.7.0%26side%3Dprovider%26timeout%3D3000%26timestamp%3D1590735956489&logger=log4j&pid=27656&release=2.7.0&timestamp=1590735956479
+        // zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-annotation-provider&dubbo=2.0.2&export=dubbo%3A%2F%2F192.168.56.1%3A20880%2Forg.apache.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddubbo-demo-annotation-provider%26bind.ip%3D192.168.56.1%26bind.port%3D20880%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26methods%3DsayHello%2CsayHelloAsync%26pid%3D16360%26release%3D%26service.name%3DServiceBean%3A%2Forg.apache.dubbo.demo.DemoService%26side%3Dprovider%26timestamp%3D1690364598026&id=registryConfig&pid=16360&timestamp=1690364598016
 
         // url to export locally
         // 得到服务提供者url，表示服务提供者
         URL providerUrl = getProviderUrl(originInvoker);
-        // dubbo://192.168.40.17:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-provider-application&bean.name=ServiceBean:org.apache.dubbo.demo.DemoService&bind.ip=192.168.40.17&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&logger=log4j&methods=sayHello&pid=27656&release=2.7.0&side=provider&timeout=3000&timestamp=1590735956489
+        // dubbo://192.168.56.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bind.ip=192.168.56.1&bind.port=20880&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=16360&release=&service.name=ServiceBean:/org.apache.dubbo.demo.DemoService&side=provider&timestamp=1690364598026
 
         // Subscribe the override data
         // FIXME When the provider subscribes, it will affect the scene : a certain JVM exposes the service and call
@@ -174,17 +174,17 @@ public class RegistryProtocol implements Protocol {
         // 在这个方法里会利用providerConfigurationListener和serviceConfigurationListener去重写providerUrl
         // providerConfigurationListener表示应用级别的动态配置监听器，providerConfigurationListener是RegistyProtocol的一个属性
         // serviceConfigurationListener表示服务级别的动态配置监听器，serviceConfigurationListener是在每暴露一个服务时就会生成一个
-        // 这两个监听器都是新版本中的监听器
-        // 新版本监听的zk路径是：
-        // 服务： /dubbo/config/dubbo/org.apache.dubbo.demo.DemoService.configurators节点的内容
-        // 应用： /dubbo/config/dubbo/dubbo-demo-provider-application.configurators节点的内容
+        // 这两个监听器都是新版本中的动态配置监听器
+        // 新版本动态配置监听的zk路径是：
+        // 服务： /dubbo/config/dubbo/org.apache.dubbo.demo.DemoService::.configurators节点的内容
+        // 应用： /dubbo/config/dubbo/dubbo-demo-annotation-provider.configurators节点的内容
         // 注意，要和配置中心的路径区分开来，配置中心的路径是：
         // 全局：/dubbo/config/dubbo/dubbo.properties节点的内容
-        // 应用：/dubbo/config/dubbo/org.apache.dubbo.demo.DemoService/dubbo.properties节点的内容
+        // 应用：/dubbo/config/dubbo/dubbo-demo-annotation-provider/dubbo.properties节点的内容
         providerUrl = overrideUrlWithConfig(providerUrl, overrideSubscribeListener);
 
         // export invoker
-        // 根据动态配置重写了providerUrl之后，就会调用DubboProtocol或HttpProtocol去进行导出服务了
+        // 根据动态配置重写了providerUrl之后，就会调用DubboProtocol或RestProtocol去进行真的的导出服务了
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl);
 
         // url to registry
@@ -212,7 +212,7 @@ public class RegistryProtocol implements Protocol {
         // Deprecated! Subscribe to override rules in 2.6.x or before.
         // 针对老版本的动态配置，需要把overrideSubscribeListener绑定到overrideSubscribeUrl上去进行监听
         // 兼容老版本的配置修改，利用overrideSubscribeListener去监听旧版本的动态配置变化
-        // 监听overrideSubscribeUrl   provider://192.168.40.17:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bean.name=ServiceBean:org.apache.dubbo.demo.DemoService&bind.ip=192.168.40.17&bind.port=20880&category=configurators&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello&pid=416332&release=&side=provider&timestamp=1585318241955
+        // 监听overrideSubscribeUrl   provider://192.168.56.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-provider&bind.ip=192.168.56.1&bind.port=20880&category=configurators&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=16360&release=&service.name=ServiceBean:/org.apache.dubbo.demo.DemoService&side=provider&timestamp=1690364598026
         // 那么新版本的providerConfigurationListener和serviceConfigurationListener是在什么时候进行订阅的呢？在这两个类构造的时候
         // 老版本监听的zk路径是：/dubbo/org.apache.dubbo.demo.DemoService/configurators/override://0.0.0.0/org.apache.dubbo.demo.DemoService?category=configurators&compatible_config=true&dynamic=false&enabled=true&timeout=6000
         // 监听的是路径的内容，不是节点的内容
@@ -236,14 +236,14 @@ public class RegistryProtocol implements Protocol {
     }
 
     private URL overrideUrlWithConfig(URL providerUrl, OverrideListener listener) {
-        // ProviderConfigurationListener 会监听/dubbo/config/dubbo/dubbo-demo-provider-application.configurators节点
-        // ProviderConfigurationListener 监听的是配置中心应用的动态配置数据修改，
+        // ProviderConfigurationListener 会监听 应用名+".configurators"节点
+        // ProviderConfigurationListener 监听的是配置中心 应用 的动态配置数据修改，
         // 所以它是在RegistryProtocol类中的一个属性，并且是随着RegistryProtocol实例化而实例化好的，一个应用中只有一个
         // 根据应用配置重写 url
         providerUrl = providerConfigurationListener.overrideUrl(providerUrl);
 
-        // ServiceConfigurationListener会监听/dubbo/config/dubbo/org.apache.dubbo.demo.DemoService.configurators节点
-        // ServiceConfigurationListener 监听的是配置中心服务的动态配置数据修改，
+        // ServiceConfigurationListener会监听 服务接口名+":"+group+":"+version+".configurators"节点
+        // ServiceConfigurationListener 监听的是配置中心 服务 的动态配置数据修改，
         // 和OverrideListener类似，也是对应一个服务的，所以在每个服务进行导出时都会生成一个
         ServiceConfigurationListener serviceConfigurationListener = new ServiceConfigurationListener(providerUrl, listener);
         serviceConfigurationListeners.put(providerUrl.getServiceKey(), serviceConfigurationListener);
@@ -774,7 +774,8 @@ public class RegistryProtocol implements Protocol {
         public ServiceConfigurationListener(URL providerUrl, OverrideListener notifyListener) {
             this.providerUrl = providerUrl;
             this.notifyListener = notifyListener;
-            // 订阅 服务接口名+group+version+".configurators"
+            // 订阅 服务接口名+":"+group+":"+version+".configurators"
+            // /dubbo/config/dubbo/org.apache.dubbo.demo.DemoService::.configurators
             this.initWith(DynamicConfiguration.getRuleKey(providerUrl) + CONFIGURATORS_SUFFIX);
         }
 
@@ -792,7 +793,8 @@ public class RegistryProtocol implements Protocol {
     private class ProviderConfigurationListener extends AbstractConfiguratorListener {
 
         public ProviderConfigurationListener() {
-            // 订阅 应用名+"-application.configurators"
+            // 订阅 应用名+".configurators"
+            // /dubbo/config/dubbo/dubbo-demo-annotation-provider.configurators
             this.initWith(ApplicationModel.getApplication() + CONFIGURATORS_SUFFIX);
         }
 
