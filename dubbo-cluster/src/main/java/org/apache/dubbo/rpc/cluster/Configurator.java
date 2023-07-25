@@ -70,6 +70,13 @@ public interface Configurator extends Comparable<Configurator> {
      * @return converted configurator list
      */
     static Optional<List<Configurator>> toConfigurators(List<URL> urls) {
+        /*
+        将 override urls 转换为 map，以便在重新引用时使用。每次发送所有规则时，URL都会重新组装并计算URL合约：
+        1. override://0.0.0.0/...（或override://ip:port...?anyhost=true)&para1=value1… 表示全局规则（所有提供者都生效）
+        2. override://ip:port...?anyhost=false 特殊规则（仅适用于特定提供者）
+        3. override:// 规则不受支持，需要由注册表本身计算
+        4. override://0.0.0.0/ 无参数意味着清除 override
+        */
         if (CollectionUtils.isEmpty(urls)) {
             return Optional.empty();
         }
@@ -79,16 +86,20 @@ public interface Configurator extends Comparable<Configurator> {
 
         List<Configurator> configurators = new ArrayList<>(urls.size());
         for (URL url : urls) {
+            // 如果存在一个empty协议，表示没有配置了
             if (EMPTY_PROTOCOL.equals(url.getProtocol())) {
                 configurators.clear();
                 break;
             }
+            // 如果协议不是empty，但是没有任何参数，那么也表示没有配置了
             Map<String, String> override = new HashMap<>(url.getParameters());
             //The anyhost parameter of override may be added automatically, it can't change the judgement of changing url
             override.remove(ANYHOST_KEY);
             if (CollectionUtils.isEmptyMap(override)) {
                 continue;
             }
+            // 通过ConfiguratorFactory生成一个Configurator对象
+            // 比如override协议对应的就是OverrideConfigurator
             configurators.add(configuratorFactory.getConfigurator(url));
         }
         Collections.sort(configurators);

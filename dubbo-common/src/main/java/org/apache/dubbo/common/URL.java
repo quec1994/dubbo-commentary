@@ -383,8 +383,11 @@ class URL implements Serializable {
 
     public static URL valueOf(URL url, String[] reserveParams, String[] reserveParamPrefixs) {
         Map<String, String> newMap = new HashMap<>();
+
+        // url上本来存在的参数
         Map<String, String> oldMap = url.getParameters();
         if (reserveParamPrefixs != null && reserveParamPrefixs.length != 0) {
+            // 先按前缀进行保留，并且会过滤掉value为null和空字符串的
             for (Map.Entry<String, String> entry : oldMap.entrySet()) {
                 for (String reserveParamPrefix : reserveParamPrefixs) {
                     if (entry.getKey().startsWith(reserveParamPrefix) && StringUtils.isNotEmpty(entry.getValue())) {
@@ -395,6 +398,7 @@ class URL implements Serializable {
         }
 
         if (reserveParams != null) {
+            // 保留指定的参数，并且value不能为空
             for (String reserveParam : reserveParams) {
                 String tmp = oldMap.get(reserveParam);
                 if (StringUtils.isNotEmpty(tmp)) {

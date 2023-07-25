@@ -19,14 +19,7 @@ package org.apache.dubbo.rpc.proxy;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
-import org.apache.dubbo.rpc.AppResponse;
-import org.apache.dubbo.rpc.AsyncContextImpl;
-import org.apache.dubbo.rpc.AsyncRpcResult;
-import org.apache.dubbo.rpc.Invocation;
-import org.apache.dubbo.rpc.Invoker;
-import org.apache.dubbo.rpc.Result;
-import org.apache.dubbo.rpc.RpcContext;
-import org.apache.dubbo.rpc.RpcException;
+import org.apache.dubbo.rpc.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.CompletableFuture;
@@ -81,11 +74,16 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
         try {
+            // 执行服务，得到一个接口，可能是一个CompletableFuture(表示异步调用)，可能是一个正常的服务执行结果（同步调用）
+            // 如果是同步调用会阻塞，如果是异步调用不会阻塞
             Object value = doInvoke(proxy, invocation.getMethodName(), invocation.getParameterTypes(), invocation.getArguments());
+            // 将同步调用的服务执行结果封装为CompletableFuture类型
             CompletableFuture<Object> future = wrapWithFuture(value);
+            // 设置一个回调，如果是异步调用，那么服务执行完成后将执行这里的回调
             CompletableFuture<AppResponse> appResponseFuture = future.handle((obj, t) -> {
                 AppResponse result = new AppResponse(invocation);
                 if (t != null) {
+                    // 如果是异步服务，那么服务执行之后的异常会在此处封装到AppResponse中
                     if (t instanceof CompletionException) {
                         result.setException(t.getCause());
                     } else {
@@ -96,20 +94,26 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
                 }
                 return result;
             });
+            // 当服务执行完后，将服务之后将结果或异常设置到AsyncRpcResult中
             return new AsyncRpcResult(appResponseFuture, invocation);
         } catch (InvocationTargetException e) {
+            // 不管同步服务还是异步服务，如果在执行服务实现类方法时抛出的异常都会被包装成 InvocationTargetException
+
             if (RpcContext.getContext().isAsyncStarted() && !RpcContext.getContext().stopAsync()) {
                 logger.error("Provider async started, but got an exception from the original method, cannot write the exception back to consumer because an async result may have returned the new thread.", e);
             }
+            // 执行服务实现类方法时如果出异常了，会在此处将异常信息封装为一个AsyncRpcResult然后返回
+            // 假设抛的NullPointException，那么会把这个异常包装为一个AsyncRpcResult对象
             return AsyncRpcResult.newDefaultAsyncResult(null, e.getTargetException(), invocation);
         } catch (Throwable e) {
+            // 执行服务过程中的所有非服务实现类方法抛出的异常都会包装为RpcException进行抛出
             throw new RpcException("Failed to invoke remote proxy method " + invocation.getMethodName() + " to " + getUrl() + ", cause: " + e.getMessage(), e);
         }
     }
 
-	private CompletableFuture<Object> wrapWithFuture(Object value) {
+    private CompletableFuture<Object> wrapWithFuture(Object value) {
         if (RpcContext.getContext().isAsyncStarted()) {
-            return ((AsyncContextImpl)(RpcContext.getContext().getAsyncContext())).getInternalFuture();
+            return ((AsyncContextImpl) (RpcContext.getContext().getAsyncContext())).getInternalFuture();
         } else if (value instanceof CompletableFuture) {
             return (CompletableFuture<Object>) value;
         }

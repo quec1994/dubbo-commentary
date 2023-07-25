@@ -38,12 +38,21 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
+        // 如果现在被代理的对象proxy本身就是一个已经被代理过的对象，那么则取type（接口）的Wrapper，否则取代理类的Wrapper
+        // Wrapper是针对某个类或某个接口的包装类，通过wrapper对象可以更方便的去执行某个类或某个接口的方法
+        // wrapper 是动态生成Wrapper子类的实例
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
+
+        // proxy是服务实现类
+        // type是服务接口
+        // url是一个注册中心url，但同时也记录了服务配置
         return new AbstractProxyInvoker<T>(proxy, type, url) {
             @Override
             protected Object doInvoke(T proxy, String methodName,
                                       Class<?>[] parameterTypes,
                                       Object[] arguments) throws Throwable {
+
+                // 执行代理方法，实际执行proxy的methodName方法
                 return wrapper.invokeMethod(proxy, methodName, parameterTypes, arguments);
             }
         };

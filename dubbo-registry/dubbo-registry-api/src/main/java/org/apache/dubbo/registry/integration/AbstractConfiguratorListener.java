@@ -41,9 +41,15 @@ public abstract class AbstractConfiguratorListener implements ConfigurationListe
     protected GovernanceRuleRepository ruleRepository = ExtensionLoader.getExtensionLoader(
             GovernanceRuleRepository.class).getDefaultExtension();
 
+    // 在构造ProviderConfigurationListener和ServiceConfigurationListener都会调用到这个方法
+    // 完成Listener自身订阅到对应的应用和服务
+    // 订阅关系绑定完了之后，主动从动态配置中心获取一下对应的配置数据生成configurators，后面需要重写providerUrl
     protected final void initWith(String key) {
+        // 添加Listener,进行了订阅
         ruleRepository.addListener(key, this);
+        // 从配置中心ConfigCenter获取属于当前应用的动态配置数据，从zk中拿到原始数据(主动从配置中心获取数据)
         String rawConfig = ruleRepository.getRule(key, DynamicConfiguration.DEFAULT_GROUP);
+        // 如果存在应用配置信息则根据配置信息生成Configurator
         if (!StringUtils.isEmpty(rawConfig)) {
             genConfiguratorsFromRawRule(rawConfig);
         }
@@ -75,6 +81,7 @@ public abstract class AbstractConfiguratorListener implements ConfigurationListe
     private boolean genConfiguratorsFromRawRule(String rawConfig) {
         try {
             // parseConfigurators will recognize app/service config automatically.
+            // 根据节点内容去生成override://协议的URL，然后根据URL去生成Configurator， Configurator对象很重要，表示一个配置器，根据配置器可以去重写URL
             configurators = Configurator.toConfigurators(ConfigParser.parseConfigurators(rawConfig))
                     .orElse(configurators);
         } catch (Exception e) {

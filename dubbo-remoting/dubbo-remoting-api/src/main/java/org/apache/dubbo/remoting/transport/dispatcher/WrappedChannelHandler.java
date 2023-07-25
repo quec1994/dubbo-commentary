@@ -107,10 +107,16 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
      * @return
      */
     public ExecutorService getPreferredExecutorService(Object msg) {
+        /*
+        目前，这种方法主要是为了方便消费者端的线程模型而定制的。
+        1.使用 ThreadlessExecutor，也就是将回调直接委托给发起调用的线程。
+        2.使用共享执行器执行回调。
+         */
         if (msg instanceof Response) {
             Response response = (Response) msg;
             DefaultFuture responseFuture = DefaultFuture.getFuture(response.getId());
             // a typical scenario is the response returned after timeout, the timeout response may has completed the future
+            // 一个典型的场景是超时后返回的响应，超时响应有可能完成在未来
             if (responseFuture == null) {
                 return getSharedExecutorService();
             } else {
@@ -118,6 +124,7 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
                 if (executor == null || executor.isShutdown()) {
                     executor = getSharedExecutorService();
                 }
+                // 将回调直接委托给发起调用的线程
                 return executor;
             }
         } else {

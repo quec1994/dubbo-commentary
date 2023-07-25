@@ -891,6 +891,7 @@ public final class StringUtils {
     }
 
     public static String camelToSplitName(String camelName, String split) {
+        // 驼峰转间隔，比如：(split=.)=>camelName->camel.name
         if (isEmpty(camelName)) {
             return camelName;
         }
@@ -901,6 +902,7 @@ public final class StringUtils {
                 if (buf == null) {
                     buf = new StringBuilder();
                     if (i > 0) {
+                        // 处理非大写字母开头的情况
                         buf.append(camelName, 0, i);
                     }
                 }

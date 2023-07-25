@@ -41,6 +41,8 @@ public class InterfaceCompatibleRegistryProtocol extends RegistryProtocol {
 
     @Override
     protected URL getRegistryUrl(Invoker<?> originInvoker) {
+        // 将registry://xxx?xx=xx&registry=zookeeper 转为 zookeeper://xxx?xx=xx
+
         URL registryUrl = originInvoker.getUrl();
         if (REGISTRY_PROTOCOL.equals(registryUrl.getProtocol())) {
             String protocol = registryUrl.getParameter(REGISTRY_KEY, DEFAULT_REGISTRY);

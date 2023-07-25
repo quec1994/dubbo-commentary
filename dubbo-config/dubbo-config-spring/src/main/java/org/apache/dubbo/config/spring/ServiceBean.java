@@ -108,6 +108,7 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
     public void exported() {
         super.exported();
         // Publish ServiceBeanExportedEvent
+        // 会发布一个 Spring 事件 ServiceBeanExportedEvent
         publishExportEvent();
     }
 

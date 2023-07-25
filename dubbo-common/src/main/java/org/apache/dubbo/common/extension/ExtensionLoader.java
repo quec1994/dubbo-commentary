@@ -23,34 +23,14 @@ import org.apache.dubbo.common.extension.support.WrapperComparator;
 import org.apache.dubbo.common.lang.Prioritized;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
-import org.apache.dubbo.common.utils.ArrayUtils;
-import org.apache.dubbo.common.utils.ClassUtils;
-import org.apache.dubbo.common.utils.CollectionUtils;
-import org.apache.dubbo.common.utils.ConcurrentHashSet;
-import org.apache.dubbo.common.utils.ConfigUtils;
-import org.apache.dubbo.common.utils.Holder;
-import org.apache.dubbo.common.utils.ReflectUtils;
-import org.apache.dubbo.common.utils.StringUtils;
+import org.apache.dubbo.common.utils.*;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.ServiceLoader;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
@@ -59,9 +39,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.sort;
 import static java.util.ServiceLoader.load;
 import static java.util.stream.StreamSupport.stream;
-import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATTERN;
-import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.REMOVE_VALUE_PREFIX;
+import static org.apache.dubbo.common.constants.CommonConstants.*;
 
 /**
  * {@link org.apache.dubbo.rpc.model.ApplicationModel}, {@code DubboBootstrap} and this class are
@@ -130,6 +108,7 @@ public class ExtensionLoader<T> {
      * @since 2.7.7
      */
     private static LoadingStrategy[] loadLoadingStrategies() {
+        // 从 JVM SPI 扩展点生成对象，定义保存dubbo扩展点文件的文件夹
         return stream(load(LoadingStrategy.class).spliterator(), false)
                 .sorted()
                 .toArray(LoadingStrategy[]::new);
@@ -257,7 +236,9 @@ public class ExtensionLoader<T> {
      * @see #getActivateExtension(org.apache.dubbo.common.URL, String[], String)
      */
     public List<T> getActivateExtension(URL url, String key, String group) {
+        // 根据key从url中得到值
         String value = url.getParameter(key);
+        // value就是想要获取的扩展点实现类的名字，可以配置多个以逗号(,)分隔
         return getActivateExtension(url, StringUtils.isEmpty(value) ? null : COMMA_SPLIT_PATTERN.split(value), group);
     }
 
@@ -277,11 +258,17 @@ public class ExtensionLoader<T> {
         Set<String> loadedNames = new HashSet<>();
         Set<String> names = CollectionUtils.ofSet(values);
         if (!names.contains(REMOVE_VALUE_PREFIX + DEFAULT_KEY)) {
+            // 想要获取的扩展点实现类的名字数组（names）里不包括"-default"
+            // 则自动获取默认的扩展点实现类对象实例集合（使用Activate注解修饰了扩展点实现类，Activate注解参数跟url参数里的key和value相匹配）
+
+            // 获取所有扩展点实现类，防止扩展点实现类还没有被加载
             getExtensionClasses();
+            // 遍历所有的被Activate注解修饰的扩展点实现类
             for (Map.Entry<String, Object> entry : cachedActivates.entrySet()) {
                 String name = entry.getKey();
                 Object activate = entry.getValue();
 
+                // Activate注解里的配置参数
                 String[] activateGroup, activateValue;
 
                 if (activate instanceof Activate) {
@@ -293,9 +280,14 @@ public class ExtensionLoader<T> {
                 } else {
                     continue;
                 }
+
+                // group表示想要获取的扩展点实现类所在的分组，activateGroup表示当前遍历的扩展点实现类所配置的分组，看是否匹配
                 if (isMatchGroup(group, activateGroup)
+                        // names表示想要获取的扩展点实现类的名字数组，name表示当前遍历的扩展点实现类的名字
                         && !names.contains(name)
                         && !names.contains(REMOVE_VALUE_PREFIX + name)
+                        // 如果当前遍历的扩展点实现类的名字不在想要获取的扩展点实现类的names内，并且names中也没有要排除它，则根据url参数看能否激活
+                        // 查看url的参数中是否存在跟activateValue匹配的key和value，并且对应的value不为空
                         && isActive(activateValue, url)
                         && !loadedNames.contains(name)) {
                     activateExtensionsMap.put(getExtensionClass(name), getExtension(name));
@@ -306,11 +298,16 @@ public class ExtensionLoader<T> {
                 activateExtensions.addAll(activateExtensionsMap.values());
             }
         }
+
+        // 直接根据names来获取扩展点实现类对象实例
         List<T> loadedExtensions = new ArrayList<>();
         for (String name : names) {
             if (!name.startsWith(REMOVE_VALUE_PREFIX)
                     && !names.contains(REMOVE_VALUE_PREFIX + name)) {
                 if (!loadedNames.contains(name)) {
+                    // DEFAULT_KEY 相当于占位符，
+                    // 如果 names 里面配置了 DEFAULT_KEY，
+                    // 那么配置在 DEFAULT_KEY 之前的扩展点实现类对象实例要放在之前已经放入集合的默认扩展点实现类对象实例之前
                     if (DEFAULT_KEY.equals(name)) {
                         if (!loadedExtensions.isEmpty()) {
                             activateExtensions.addAll(0, loadedExtensions);
@@ -321,6 +318,7 @@ public class ExtensionLoader<T> {
                     }
                     loadedNames.add(name);
                 } else {
+                    // 如果names里配置的跟默认扩展点实现类重了，打个日志
                     // If getExtension(name) exists, getExtensionClass(name) must exist, so there is no null pointer processing here.
                     String simpleName = getExtensionClass(name).getSimpleName();
                     logger.warn("Catch duplicated filter, ExtensionLoader will ignore one of them. Please check. Filter Name: " + name +
@@ -434,15 +432,21 @@ public class ExtensionLoader<T> {
             throw new IllegalArgumentException("Extension name == null");
         }
         if ("true".equals(name)) {
+            // 获取默认扩展点实现类
             return getDefaultExtension();
         }
+        // 一个name仅有一个holder
         final Holder<Object> holder = getOrCreateHolder(name);
         Object instance = holder.get();
         if (instance == null) {
+            // 如果有两个线程同时来获取同一个name的扩展点对象，那只会有一个线程会进行创建
+            // 一个name对应同一个holder、对应同一把锁
             synchronized (holder) {
                 instance = holder.get();
                 if (instance == null) {
+                    // 创建扩展点实例对象
                     instance = createExtension(name, wrap);
+                    // 缓存扩展点实例对象
                     holder.set(instance);
                 }
             }
@@ -601,9 +605,11 @@ public class ExtensionLoader<T> {
 
     @SuppressWarnings("unchecked")
     public T getAdaptiveExtension() {
+        // 获取缓存的扩展点自适应实现类对象实例
         Object instance = cachedAdaptiveInstance.get();
         if (instance == null) {
             if (createAdaptiveInstanceError != null) {
+                // 之前创建缓存的扩展点自适应实现类对象实例失败了
                 throw new IllegalStateException("Failed to create adaptive instance: " +
                         createAdaptiveInstanceError.toString(),
                         createAdaptiveInstanceError);
@@ -613,6 +619,9 @@ public class ExtensionLoader<T> {
                 instance = cachedAdaptiveInstance.get();
                 if (instance == null) {
                     try {
+                        // 创建扩展点自适应实现类对象实例
+                        // 1. 根据指定的扩展点自适应实现类实例化
+                        // 2. 根据动态生成的扩展点自适应实现类实例化
                         instance = createAdaptiveExtension();
                         cachedAdaptiveInstance.set(instance);
                     } catch (Throwable t) {
@@ -652,16 +661,22 @@ public class ExtensionLoader<T> {
 
     @SuppressWarnings("unchecked")
     private T createExtension(String name, boolean wrap) {
+        // 获取扩展点实现类
         Class<?> clazz = getExtensionClasses().get(name);
         if (clazz == null || unacceptableExceptions.contains(name)) {
+            // 没有对应的扩展点实现类，或者加载扩展点实现类时出现一场
             throw findException(name);
         }
         try {
+            // 扩展点实现类对象实例缓存
             T instance = (T) EXTENSION_INSTANCES.get(clazz);
             if (instance == null) {
+                // 创建对象实例
                 EXTENSION_INSTANCES.putIfAbsent(clazz, clazz.getDeclaredConstructor().newInstance());
                 instance = (T) EXTENSION_INSTANCES.get(clazz);
             }
+
+            // Dubbo 的依赖注入 IOC
             injectExtension(instance);
 
 
@@ -708,14 +723,17 @@ public class ExtensionLoader<T> {
                 if (!isSetter(method)) {
                     continue;
                 }
+                // 利用set方法注入
 
                 /*
                  * Check {@link DisableInject} to see if we need autowire injection for this property
                  */
                 if (method.getAnnotation(DisableInject.class) != null) {
+                    // 显示注解不允许依赖注入
                     continue;
                 }
 
+                // set方法中的参数类型
                 Class<?> pt = method.getParameterTypes()[0];
                 if (ReflectUtils.isPrimitives(pt)) {
                     continue;
@@ -726,6 +744,7 @@ public class ExtensionLoader<T> {
                  * {@link Inject#enable} == false will skip inject property phase
                  * {@link Inject#InjectType#ByName} default inject by name
                  */
+                // 得到setXxx中的xxx
                 String property = getSetterProperty(method);
                 Inject inject = method.getAnnotation(Inject.class);
                 if (inject == null) {
@@ -750,6 +769,8 @@ public class ExtensionLoader<T> {
 
     private void injectValue(T instance, Method method, Class<?> pt, String property) {
         try {
+            // 根据参数类型或属性名，从objectFactory中获取到对象，然后调用set方法进行注入
+            // AdaptiveExtensionFactory
             Object object = objectFactory.getExtension(pt, property);
             if (object != null) {
                 method.invoke(instance, object);
@@ -802,11 +823,14 @@ public class ExtensionLoader<T> {
     }
 
     private Map<String, Class<?>> getExtensionClasses() {
+        // cachedClasses是一个Holder对象，持有的就是一个Map<String, Class<?>>
+        // 为什么要多此一举，也是为了解决并发，Holder对象用来作为锁
         Map<String, Class<?>> classes = cachedClasses.get();
         if (classes == null) {
             synchronized (cachedClasses) {
                 classes = cachedClasses.get();
                 if (classes == null) {
+                    // 加载、解析文件 Map
                     classes = loadExtensionClasses();
                     cachedClasses.set(classes);
                 }
@@ -819,13 +843,17 @@ public class ExtensionLoader<T> {
      * synchronized in getExtensionClasses
      */
     private Map<String, Class<?>> loadExtensionClasses() {
+        // 缓存扩展点接口默认的扩展点名称
         cacheDefaultExtensionName();
 
         Map<String, Class<?>> extensionClasses = new HashMap<>();
 
+        // 以 JAVA SPI 方式定义的dubbo扩展点存储文件的文件夹路径
         for (LoadingStrategy strategy : strategies) {
+            // 读取扩展点对应的配置文件
             loadDirectory(extensionClasses, strategy.directory(), type.getName(), strategy.preferExtensionClassLoader(),
                     strategy.overridden(), strategy.excludedPackages());
+            // 读取扩展点对应的配置文件（兼容 com.alibaba）
             loadDirectory(extensionClasses, strategy.directory(), type.getName().replace("org.apache", "com.alibaba"),
                     strategy.preferExtensionClassLoader(), strategy.overridden(), strategy.excludedPackages());
         }
@@ -863,11 +891,14 @@ public class ExtensionLoader<T> {
                                boolean extensionLoaderClassLoaderFirst, boolean overridden, String... excludedPackages) {
         String fileName = dir + type;
         try {
+            // 根据文件中的内容得到文件资源urls， 每个url表示一个扩展
+            // 例如http=org.apache.dubbo.rpc.protocol.http.HttpProtocol
             Enumeration<java.net.URL> urls = null;
             ClassLoader classLoader = findClassLoader();
 
             // try to load from ExtensionLoader's ClassLoader first
             if (extensionLoaderClassLoaderFirst) {
+                // 首选扩展点加载器的ClassLoader
                 ClassLoader extensionLoaderClassLoader = ExtensionLoader.class.getClassLoader();
                 if (ClassLoader.getSystemClassLoader() != extensionLoaderClassLoader) {
                     urls = extensionLoaderClassLoader.getResources(fileName);
@@ -883,8 +914,10 @@ public class ExtensionLoader<T> {
             }
 
             if (urls != null) {
+                // 遍历文件资源url进行加载
                 while (urls.hasMoreElements()) {
                     java.net.URL resourceURL = urls.nextElement();
+                    // 解析文件内容把扩展点实现类添加到extensionClasses中
                     loadResource(extensionClasses, classLoader, resourceURL, overridden, excludedPackages);
                 }
             }
@@ -903,6 +936,7 @@ public class ExtensionLoader<T> {
                 while ((line = reader.readLine()) != null) {
                     final int ci = line.indexOf('#');
                     if (ci >= 0) {
+                        // 去掉 # 后的内容
                         line = line.substring(0, ci);
                     }
                     line = line.trim();
@@ -912,11 +946,14 @@ public class ExtensionLoader<T> {
                             int i = line.indexOf('=');
                             if (i > 0) {
                                 name = line.substring(0, i).trim();
+                                // 取 = 后的扩展点实现类全限定名
                                 clazz = line.substring(i + 1).trim();
                             } else {
+                                // 没有配置名称的扩展点实现类全限定名
                                 clazz = line;
                             }
                             if (StringUtils.isNotEmpty(clazz) && !isExcluded(clazz, excludedPackages)) {
+                                // 加载扩展点实现类，并添加到extensionClasses中
                                 loadClass(extensionClasses, resourceURL, Class.forName(clazz, true, classLoader), name, overridden);
                             }
                         } catch (Throwable t) {
@@ -953,12 +990,17 @@ public class ExtensionLoader<T> {
                     + clazz.getName() + " is not subtype of interface.");
         }
         if (clazz.isAnnotationPresent(Adaptive.class)) {
+            // 当前扩展点实现类手动指定了为Adaptive类
             cacheAdaptiveClass(clazz, overridden);
         } else if (isWrapperClass(clazz)) {
+            // 当前扩展点实现类是一个Wrapper类
             cacheWrapperClass(clazz);
         } else {
+            // 扩展点实现类需要有无参的构造方法，否则报错
             clazz.getConstructor();
             if (StringUtils.isEmpty(name)) {
+                // 在文件中没有name，但是在类上指定了Extension的注解上指定了name
+                // 如果没有指定则根据类名生成name
                 name = findAnnotationName(clazz);
                 if (name.length() == 0) {
                     throw new IllegalStateException(
@@ -968,9 +1010,15 @@ public class ExtensionLoader<T> {
 
             String[] names = NAME_SEPARATOR.split(name);
             if (ArrayUtils.isNotEmpty(names)) {
+                // 缓存一下被Activate注解了的类
+                // 缓存被Activate注解标记了的类，表示这个扩展点在什么时候能用
                 cacheActivateClass(clazz, names[0]);
+
+                // 定义了多个名字
                 for (String n : names) {
+                    // clazz: name 形式
                     cacheName(clazz, n);
+                    // name: clazz 形式
                     saveInExtensionClass(extensionClasses, clazz, n, overridden);
                 }
             }
@@ -1063,36 +1111,48 @@ public class ExtensionLoader<T> {
 
     @SuppressWarnings("deprecation")
     private String findAnnotationName(Class<?> clazz) {
+        // 获取类上Extension注解指定的name
         org.apache.dubbo.common.Extension extension = clazz.getAnnotation(org.apache.dubbo.common.Extension.class);
         if (extension != null) {
             return extension.value();
         }
-
+        // 没有指定name，根据类名生成1个
         String name = clazz.getSimpleName();
         if (name.endsWith(type.getSimpleName())) {
+            // 去掉接口类名后缀
             name = name.substring(0, name.length() - type.getSimpleName().length());
         }
+        // 转成全小写
         return name.toLowerCase();
     }
 
     @SuppressWarnings("unchecked")
     private T createAdaptiveExtension() {
         try {
-            return injectExtension((T) getAdaptiveExtensionClass().newInstance());
+            // 自动注入
+            return injectExtension(
+                    // 获取扩展点自适应实现类并实例化
+                    (T) getAdaptiveExtensionClass().newInstance());
         } catch (Exception e) {
             throw new IllegalStateException("Can't create adaptive extension " + type + ", cause: " + e.getMessage(), e);
         }
     }
 
     private Class<?> getAdaptiveExtensionClass() {
+        // 获取当前接口的所有扩展类
         getExtensionClasses();
+        // 缓存了@Adaptive注解标记的类
         if (cachedAdaptiveClass != null) {
+            // 指定了扩展点自适应实现类
             return cachedAdaptiveClass;
         }
+        // 没有指定的话，动态生成一个扩展点自适应实现类
         return cachedAdaptiveClass = createAdaptiveExtensionClass();
     }
 
     private Class<?> createAdaptiveExtensionClass() {
+        // cachedDefaultName表示接口默认的扩展点实现类名称
+        // 没有根据url参数取到扩展点实现类的话，会使用接口默认的扩展点实现类的对象实例执行方法并返回结果
         String code = new AdaptiveClassCodeGenerator(type, cachedDefaultName).generate();
         ClassLoader classLoader = findClassLoader();
         org.apache.dubbo.common.compiler.Compiler compiler =

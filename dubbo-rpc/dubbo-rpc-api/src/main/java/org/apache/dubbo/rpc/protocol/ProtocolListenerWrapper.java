@@ -61,7 +61,11 @@ public class ProtocolListenerWrapper implements Protocol {
         if (UrlUtils.isRegistry(invoker.getUrl())) {
             return protocol.export(invoker);
         }
+        // ListenerExporterWrapper类主要负责:
+        // 1. 创建之后，调用ExporterListener.exported方法
+        // 2. 在unexport对应服务之后，调用ExporterListener.unexported方法
         return new ListenerExporterWrapper<T>(protocol.export(invoker),
+                // 得到ExporterListener接口中能用的扩展点，根据url和EXPORTER_LISTENER_KEY进行筛选
                 Collections.unmodifiableList(ExtensionLoader.getExtensionLoader(ExporterListener.class)
                         .getActivateExtension(invoker.getUrl(), EXPORTER_LISTENER_KEY)));
     }

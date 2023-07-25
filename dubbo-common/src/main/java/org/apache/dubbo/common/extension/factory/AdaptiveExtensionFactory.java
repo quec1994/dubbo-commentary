@@ -43,7 +43,9 @@ public class AdaptiveExtensionFactory implements ExtensionFactory {
 
     @Override
     public <T> T getExtension(Class<T> type, String name) {
+        // 遍历两个ExtensionFactory，从ExtensionFactory中得到实例，只要从某个ExtensionFactory中获取到对象实例就可以了
         for (ExtensionFactory factory : factories) {
+            // 从 SpringExtensionFactory、SpiExtensionFactory 获取对象实例
             T extension = factory.getExtension(type, name);
             if (extension != null) {
                 return extension;

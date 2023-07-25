@@ -516,10 +516,16 @@ public class DubboBootstrap {
             return;
         }
 
+        // 加载并初始化所有 FrameworkExt 扩展点
+        // 将Environment中的externalConfigurationMap、appExternalConfigurationMap和externalConfiguration、appExternalConfigurationMap做关联
         ApplicationModel.initFrameworkExts();
 
+        // 从配置中心获取配置，包括应用配置和全局配置
+        // 把获取到的配置放入到Environment中的externalConfigurationMap和appExternalConfigurationMap中
+        // 并刷新所有的XxConfig的属性（除开ServiceConfig），刷新的意思就是将配置中心的配置覆盖调用XxConfig中的属性
         startConfigCenter();
 
+        // 初始化配置中心里配置的RegistryConfig和ProtocolConfig
         loadRemoteConfigs();
 
         checkGlobalConfigs();
@@ -601,6 +607,7 @@ public class DubboBootstrap {
         // check Config Center
         if (CollectionUtils.isEmpty(configCenters)) {
             ConfigCenterConfig configCenterConfig = new ConfigCenterConfig();
+            // 从 JVM启动参数->环境变量->dubbo.properties文件 中获取配置中心的相关属性信息
             configCenterConfig.refresh();
             if (configCenterConfig.isValid()) {
                 configManager.addConfigCenter(configCenterConfig);
@@ -608,6 +615,8 @@ public class DubboBootstrap {
             }
         } else {
             for (ConfigCenterConfig configCenterConfig : configCenters) {
+                // 从 JVM启动参数 更新配置中心的属性信息
+                // 从 环境变量->dubbo.properties文件 中更新配置中心中没有配置的属性信息
                 configCenterConfig.refresh();
                 ConfigValidationUtils.validateConfigCenterConfig(configCenterConfig);
             }
@@ -616,10 +625,12 @@ public class DubboBootstrap {
         if (CollectionUtils.isNotEmpty(configCenters)) {
             CompositeDynamicConfiguration compositeDynamicConfiguration = new CompositeDynamicConfiguration();
             for (ConfigCenterConfig configCenter : configCenters) {
+                // 属性更新后，从远程配置中心获取数据(应用配置，全局配置)
                 compositeDynamicConfiguration.addConfiguration(prepareEnvironment(configCenter));
             }
             environment.setDynamicConfiguration(compositeDynamicConfiguration);
         }
+        // 从配置中心取到配置数据后，刷新所有的XxConfig中的属性，除开ServiceConfig
         configManager.refreshAll();
     }
 
@@ -655,6 +666,7 @@ public class DubboBootstrap {
      */
     private void useRegistryAsConfigCenterIfNecessary() {
         // we use the loading status of DynamicConfiguration to decide whether ConfigCenter has been initiated.
+        // 根据 DynamicConfiguration 的加载状态来决定 ConfigCenter 是否已经启动。
         if (environment.getDynamicConfiguration().isPresent()) {
             return;
         }
@@ -663,6 +675,7 @@ public class DubboBootstrap {
             return;
         }
 
+        // 如果没有配置 ConfigCenter 配置则把默认的 Registry 配置转化成 ConfigCenter 配置
         configManager
                 .getDefaultRegistries()
                 .stream()
@@ -879,11 +892,13 @@ public class DubboBootstrap {
         if (started.compareAndSet(false, true)) {
             destroyed.set(false);
             ready.set(false);
+            // 初始化配置、从配置中心拉取配置
             initialize();
             if (logger.isInfoEnabled()) {
                 logger.info(NAME + " is starting...");
             }
             // 1. export Dubbo Services
+            // 导出服务
             exportServices();
 
             // Not only provider register
@@ -1019,28 +1034,34 @@ public class DubboBootstrap {
 
     private DynamicConfiguration prepareEnvironment(ConfigCenterConfig configCenter) {
         if (configCenter.isValid()) {
+            // 判断配置中心是否被初始化过了
             if (!configCenter.checkOrUpdateInited()) {
                 return null;
             }
+            // 动态配置中心，管理台上的配置中心
             DynamicConfiguration dynamicConfiguration = getDynamicConfiguration(configCenter.toUrl());
+            // 如果是zookeeper，获取的就是zookeeper上/dubbo/config/dubbo/dubbo.properties节点中的内容
             String configContent = dynamicConfiguration.getProperties(configCenter.getConfigFile(), configCenter.getGroup());
 
             String appGroup = getApplication().getName();
             String appConfigContent = null;
             if (isNotEmpty(appGroup)) {
+                // 获取的就是zookeeper上/dubbo/config/dubbo-demo-provider-application/dubbo.properties节点中的内容
                 appConfigContent = dynamicConfiguration.getProperties
                         (isNotEmpty(configCenter.getAppConfigFile()) ? configCenter.getAppConfigFile() : configCenter.getConfigFile(),
                                 appGroup
                         );
             }
             try {
+                // 判断是否是配置中心的配置优先
                 environment.setConfigCenterFirst(configCenter.isHighestPriority());
+                // 把获取到的配置放入到Environment中的externalConfigurationMap
                 Map<String, String> globalRemoteProperties = parseProperties(configContent);
                 if (CollectionUtils.isEmptyMap(globalRemoteProperties)) {
                     logger.info("No global configuration in config center");
                 }
                 environment.updateExternalConfigurationMap(globalRemoteProperties);
-
+                // 把获取到的配置放入到Environment中的appExternalConfigurationMap中
                 Map<String, String> appRemoteProperties = parseProperties(appConfigContent);
                 if (CollectionUtils.isEmptyMap(appRemoteProperties)) {
                     logger.info("No application level configuration in config center");
@@ -1074,6 +1095,7 @@ public class DubboBootstrap {
             serviceConfig.setBootstrap(this);
 
             if (exportAsync) {
+                // 异步导出
                 ExecutorService executor = executorRepository.getServiceExporterExecutor();
                 Future<?> future = executor.submit(() -> {
                     try {
@@ -1084,6 +1106,7 @@ public class DubboBootstrap {
                 });
                 asyncExportingFutures.add(future);
             } else {
+                // 同步导出
                 exportService(serviceConfig);
             }
         });
@@ -1097,6 +1120,7 @@ public class DubboBootstrap {
                     sc.toString() + "]. Only one service can be exported for the same triple (group, interface, version), " +
                     "please modify the group or version if you really need to export multiple services of the same interface.");
         }
+        // 调 ServiceBean.export() 方法执行导出，但是 ServiceBean 没有覆盖实现 export() 方法，因此此处是直接执行的 ServiceConfig.export() 方法
         sc.export();
         exportedServices.put(sc.getServiceName(), sc);
     }

@@ -94,6 +94,7 @@ public class RemoteMetadataServiceImpl {
     public void publishServiceDefinition(URL url) {
         String side = url.getParameter(SIDE_KEY);
         if (PROVIDER_SIDE.equalsIgnoreCase(side)) {
+            // 根据服务url，将服务的元信息存入元数据中心
             //TODO, the params part is duplicate with that stored by exportURL(url), can be further optimized in the future.
             publishProvider(url);
         } else {
@@ -112,6 +113,7 @@ public class RemoteMetadataServiceImpl {
             String interfaceName = providerUrl.getParameter(INTERFACE_KEY);
             if (StringUtils.isNotEmpty(interfaceName)) {
                 Class interfaceClass = Class.forName(interfaceName);
+                // 这个就是服务的元信息，包括接口名和服务的配置
                 FullServiceDefinition fullServiceDefinition = ServiceDefinitionBuilder.buildFullDefinition(interfaceClass,
                         providerUrl.getParameters());
                 for (Map.Entry<String, MetadataReport> entry : getMetadataReports().entrySet()) {

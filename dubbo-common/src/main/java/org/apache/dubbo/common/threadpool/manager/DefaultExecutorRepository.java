@@ -69,12 +69,17 @@ public class DefaultExecutorRepository implements ExecutorRepository {
      * @return
      */
     public synchronized ExecutorService createExecutorIfAbsent(URL url) {
+        // data 是线程池缓存，key为java.util.concurrent.ExecutorService
+        // data 存储的格式是这样的:{"java.util.concurrent.ExecutorService":{"20880":executor}}
         Map<Integer, ExecutorService> executors = data.computeIfAbsent(EXECUTOR_SERVICE_COMPONENT_KEY, k -> new ConcurrentHashMap<>());
         //issue-7054:Consumer's executor is sharing globally, key=Integer.MAX_VALUE. Provider's executor is sharing by protocol.
+        // 如果服务消费者，portKey为Integer.MAX_VALUE
+        // 如果是服务提供者，portKey为服务的端口号
         Integer portKey = CONSUMER_SIDE.equalsIgnoreCase(url.getParameter(SIDE_KEY)) ? Integer.MAX_VALUE : url.getPort();
         ExecutorService executor = executors.computeIfAbsent(portKey, k -> createExecutor(url));
         // If executor has been shut down, create a new one
         if (executor.isShutdown() || executor.isTerminated()) {
+            // 如果线程池被关闭了，重新建1个
             executors.remove(portKey);
             executor = createExecutor(url);
             executors.put(portKey, executor);

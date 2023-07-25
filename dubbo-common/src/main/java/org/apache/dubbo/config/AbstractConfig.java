@@ -119,44 +119,77 @@ public abstract class AbstractConfig implements Serializable {
 
     @SuppressWarnings("unchecked")
     public static void appendParameters(Map<String, String> parameters, Object config, String prefix) {
+        /*
+        把XxConfig中的属性添加到parameters中
+         */
+
         if (config == null) {
             return;
         }
         Method[] methods = config.getClass().getMethods();
         for (Method method : methods) {
+            // 遍历某个Config类的get方法和getParameters方法
             try {
                 String name = method.getName();
                 if (MethodUtils.isGetter(method)) {
+                    // get方法
+                    /*
+                     利用get方法来获得key和value，key表示配置项，value表示对应的值
+                     如果@Parameter注解的key属性有值，则该值为key，否则截取get方法获取到key
+                     执行get方法获取到value
+                     对于某些key可以存在多个值，那么这时可以利用@Parameter注解的append属性
+                     如果prefix存在，则key=prefix+"."+key
+                     把key和value，put到parameters中
+                     */
                     Parameter parameter = method.getAnnotation(Parameter.class);
+
+                    // 如果get方法返回类型是Object类型，或者
+                    // @Parameter注解存在，但是excluded为true，表示忽略该get方法
+                    // 有些参数不需要做为url的参数，比如contextPath
                     if (method.getReturnType() == Object.class || parameter != null && parameter.excluded()) {
                         continue;
                     }
+                    // get方法对应的key
                     String key;
                     if (parameter != null && parameter.key().length() > 0) {
+                        // 方法配置了@Parameter注解，取注解里的值作为Key
                         key = parameter.key();
                     } else {
+                        // 没有配置则截取get方法名，截取后的是 aaa.bbb.ccc 样子的层级形式的key
                         key = calculatePropertyFromGetter(name);
                     }
+                    // 执行get方法
                     Object value = method.invoke(config);
                     String str = String.valueOf(value).trim();
                     if (value != null && str.length() > 0) {
+                        // 需要编码
                         if (parameter != null && parameter.escaped()) {
                             str = URL.encode(str);
                         }
+                        // 是不是把get方法的返回值添加到现有的parameters中去
                         if (parameter != null && parameter.append()) {
+                            // 从parameters获取key对应的值
                             String pre = parameters.get(key);
                             if (pre != null && pre.length() > 0) {
+                                // 将执行get方法得到的值拼接到parameters中的值后面
                                 str = pre + "," + str;
                             }
                         }
+                        // 前缀+key
+                        // 为什么要有前缀？因为在服务导出时，会存在很多的配置项与值，这些配置项都会存入到map中，防止key冲突
+                        // 比如可以针对单个方法进行配置，此时前缀就是方法名
                         if (prefix != null && prefix.length() > 0) {
                             key = prefix + "." + key;
                         }
+                        // key对应某个值
                         parameters.put(key, str);
                     } else if (parameter != null && parameter.required()) {
                         throw new IllegalStateException(config.getClass().getSimpleName() + "." + key + " == null");
                     }
                 } else if (isParametersGetter(method)) {
+                    // getParameters方法
+
+                    // 执行getParameters方法
                     Map<String, String> map = (Map<String, String>) method.invoke(config, new Object[0]);
                     parameters.putAll(convert(map, prefix));
                 }
@@ -467,6 +500,14 @@ public abstract class AbstractConfig implements Serializable {
         this.prefix = prefix;
     }
 
+    // 刷新XxConfig
+    // 一个XxConfig对象的属性可能是有值的，也可能是没有值的，这时需要从其他位置获取属性值,来进行属性的覆盖
+    // 覆盖的优先级，从大到小为 JVM启动参数->环境变量->配置中心应用配置->配置中心全局配置->注解或xml中定义->dubbo.properties文件
+
+    // 以ServiceConfig为例，ServiceConfig中包括很多属性，比如timeout
+    // 但是在定义一个Service时，如果在注解上没有配置timeout，那么就会其他地方获取timeout的配置
+    // 比如可以从 JVM启动参数->环境变量->配置中心应用配置->配置中心全局配置->注解或xml中定义->dubbo.properties文件
+    // refresh是刷新，将当前ServiceConfig上的set方法所对应的属性更新为优先级最高的值
     public void refresh() {
         Environment env = ApplicationModel.getEnvironment();
         try {
@@ -474,8 +515,10 @@ public abstract class AbstractConfig implements Serializable {
             // loop methods, get override value and set the new value back to method
             Method[] methods = getClass().getMethods();
             for (Method method : methods) {
+                // 判断是不是setXX()方法
                 if (MethodUtils.isSetter(method)) {
                     try {
+                        // 获取xx配置项的value
                         String value = StringUtils.trim(compositeConfiguration.getString(extractPropertyName(getClass(), method)));
                         // isTypeMatch() is called to avoid duplicate and incorrect update, for example, we have two 'setGeneric' methods in ReferenceConfig.
                         if (StringUtils.isNotEmpty(value) && ClassUtils.isTypeMatch(method.getParameterTypes()[0], value)) {
@@ -486,7 +529,9 @@ public abstract class AbstractConfig implements Serializable {
                                 this.getClass().getSimpleName() +
                                 ", please make sure every property has getter/setter method provided.");
                     }
+                // 判断是不是setParameters()方法
                 } else if (isParametersSetter(method)) {
+                    // 获取parameter配置项的value
                     String value = StringUtils.trim(compositeConfiguration.getString(extractPropertyName(getClass(), method)));
                     if (StringUtils.isNotEmpty(value)) {
                         Map<String, String> map = invokeGetParameters(getClass(), this);

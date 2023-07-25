@@ -285,7 +285,11 @@ public class DubboProtocol extends AbstractProtocol {
         URL url = invoker.getUrl();
 
         // export service.
+        // 服务的 key
         String key = serviceKey(url);
+        // DubboExporter类中保存了对应服务的Invoker对象，和当前服务的唯一标志，
+        // 当NettyServer接收到请求后，会根据请求中的服务信息，找到服务对应的DubboExporter对象，然后从对象中得到Invoker对象
+        // 构造一个Exporter进行服务导出
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
         exporterMap.addExportMap(key, exporter);
 
@@ -303,7 +307,11 @@ public class DubboProtocol extends AbstractProtocol {
             }
         }
 
+        // 开启NettyServer
+        //请求--->invocation--->服务key--->exporterMap.get(key)--->exporter--->invoker--->invoker.invoke(invocation)-->执行服务
         openServer(url);
+
+        // 特殊的一些序列化机制，比如kryo提供了注册机制来注册类，提高序列化和反序列化的速度
         optimizeSerialization(url);
 
         return exporter;
@@ -311,20 +319,25 @@ public class DubboProtocol extends AbstractProtocol {
 
     private void openServer(URL url) {
         // find server.
+        // 获得ip地址和port， 192.168.40.17:20880
         String key = url.getAddress();
         //client can export a service which's only for server to invoke
+        // 客户端可以导出只供服务器调用的服务
         boolean isServer = url.getParameter(IS_SERVER_KEY, true);
         if (isServer) {
+            // 缓存Server对象
             ProtocolServer server = serverMap.get(key);
             if (server == null) {
                 synchronized (this) {
                     server = serverMap.get(key);
                     if (server == null) {
+                        // 创建Server，并进行缓存
                         serverMap.put(key, createServer(url));
                     }
                 }
             } else {
                 // server supports reset, use together with override
+                // 服务重新导出时，就会走这里
                 server.reset(url);
             }
         }
@@ -338,19 +351,24 @@ public class DubboProtocol extends AbstractProtocol {
                 .addParameterIfAbsent(HEARTBEAT_KEY, String.valueOf(DEFAULT_HEARTBEAT))
                 .addParameter(CODEC_KEY, DubboCodec.NAME)
                 .build();
+        // 协议的服务器端实现类型，比如：dubbo协议的mina,netty等，http协议的jetty,servlet等，默认为netty
         String str = url.getParameter(SERVER_KEY, DEFAULT_REMOTING_SERVER);
 
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str)) {
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
         }
 
+        // 通过url绑定端口，和对应的请求处理器
         ExchangeServer server;
         try {
+            // requestHandler是请求处理器，类型为ExchangeHandler
+            // 表示从url的端口接收到请求后，requestHandler来进行处理
             server = Exchangers.bind(url, requestHandler);
         } catch (RemotingException e) {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);
         }
 
+        // 协议的客户端实现类型，比如：dubbo协议的mina,netty等
         str = url.getParameter(CLIENT_KEY);
         if (str != null && str.length() > 0) {
             Set<String> supportedTypes = ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions();

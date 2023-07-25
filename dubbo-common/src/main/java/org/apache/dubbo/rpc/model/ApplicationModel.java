@@ -78,8 +78,10 @@ public class ApplicationModel {
     private static final ExtensionLoader<FrameworkExt> LOADER = ExtensionLoader.getExtensionLoader(FrameworkExt.class);
 
     public static void initFrameworkExts() {
+        // 加载 ConfigManager、Environment、ServiceRepository
         Set<FrameworkExt> exts = ExtensionLoader.getExtensionLoader(FrameworkExt.class).getSupportedExtensionInstances();
         for (FrameworkExt ext : exts) {
+            // 只有 Environment 覆盖实现了 initialize() 方法
             ext.initialize();
         }
     }

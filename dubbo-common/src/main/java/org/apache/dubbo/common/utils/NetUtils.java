@@ -224,10 +224,12 @@ public class NetUtils {
             return HOST_ADDRESS;
         }
 
+        // 拿到本机网卡中ip地址
         InetAddress address = getLocalAddress();
         if (address != null) {
             return HOST_ADDRESS = address.getHostAddress();
         }
+        // 如果没有，那就取127.0.0.1
         return LOCALHOST_VALUE;
     }
 

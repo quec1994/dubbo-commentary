@@ -44,16 +44,19 @@ public class ConfigParser {
 
     public static List<URL> parseConfigurators(String rawConfig) throws Exception {
         // compatible url JsonArray, such as [ "override://xxx", "override://xxx" ]
+        // 直接就是url形式的配置
         if (isJsonArray(rawConfig)) {
             return parseJsonArray(rawConfig);
         }
 
         List<URL> urls = new ArrayList<>();
+        // Yaml 形式的配置转成 ConfiguratorConfig 对象
         ConfiguratorConfig configuratorConfig = parseObject(rawConfig);
 
         String scope = configuratorConfig.getScope();
         List<ConfigItem> items = configuratorConfig.getConfigs();
 
+        // 转成override://url
         if (ConfiguratorConfig.SCOPE_APPLICATION.equals(scope)) {
             items.forEach(item -> urls.addAll(appItemToUrls(item, configuratorConfig)));
         } else {

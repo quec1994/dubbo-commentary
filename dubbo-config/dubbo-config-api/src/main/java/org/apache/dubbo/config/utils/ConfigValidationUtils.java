@@ -191,18 +191,27 @@ public class ConfigValidationUtils {
         if (CollectionUtils.isNotEmpty(registries)) {
             for (RegistryConfig config : registries) {
                 String address = config.getAddress();
+                // 如果注册中心没有配地址，则地址为0.0.0.0
                 if (StringUtils.isEmpty(address)) {
                     address = ANYHOST_VALUE;
                 }
+                // 如果注册中心的地址不是"N/A"
                 if (!RegistryConfig.NO_AVAILABLE.equalsIgnoreCase(address)) {
                     Map<String, String> map = new HashMap<String, String>();
+                    // 把application中的参数放入map中，注意，map中的key是没有prefix的
                     AbstractConfig.appendParameters(map, application);
+                    // 把config中的参数放入map中，注意，map中的key是没有prefix的
+                    // config是RegistryConfig，表示注册中心
                     AbstractConfig.appendParameters(map, config);
+                    // 此处path值固定为RegistryService.class.getName()，因为现在是在加载注册中心
                     map.put(PATH_KEY, RegistryService.class.getName());
+                    // 把dubbo的版本信息和pid放入map中
                     AbstractInterfaceConfig.appendRuntimeParameters(map);
+                    // 如果map中如果没有protocol，那么默认为dubbo
                     if (!map.containsKey(PROTOCOL_KEY)) {
                         map.put(PROTOCOL_KEY, DUBBO_PROTOCOL);
                     }
+                    // 构造注册中心url，地址+参数
                     List<URL> urls = UrlUtils.parseURLs(address, map);
 
                     if (urls == null) {
@@ -212,8 +221,17 @@ public class ConfigValidationUtils {
 
                         url = URLBuilder.from(url)
                                 .addParameter(REGISTRY_KEY, url.getProtocol())
+                                // 是否是服务发现类型的注册中心
                                 .setProtocol(extractRegistryType(url))
                                 .build();
+                        // 到此为止，url的内容大致为：
+                        // registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-annotation-provider&dubbo=2.0.2&pid=269936&registry=zookeeper&timestamp=1584886077813
+                        // 该url表示：使用registry协议调用org.apache.dubbo.registry.RegistryService服务
+                        // 参数为application=dubbo-demo-annotation-provider&dubbo=2.0.2&pid=269936&registry=zookeeper&timestamp=1584886077813
+
+                        // 这里是服务提供者和服务消费者区别的逻辑
+                        // 如果是服务提供者，获取register的值，如果为false，表示该服务不注册到注册中心
+                        // 如果是服务消费者，获取subscribe的值，如果为false，表示该引入的服务不订阅注册中心中的数据
                         if ((provider && url.getParameter(REGISTER_KEY, true))
                                 || (!provider && url.getParameter(SUBSCRIBE_KEY, true))) {
                             registryList.add(url);
@@ -222,6 +240,7 @@ public class ConfigValidationUtils {
                 }
             }
         }
+        // 服务发现类型的注册中心注册两份URL
         return genCompatibleRegistries(registryList, provider);
     }
 
@@ -269,6 +288,7 @@ public class ConfigValidationUtils {
         ApplicationConfig application = interfaceConfig.getApplication();
         AbstractConfig.appendParameters(map, monitor);
         AbstractConfig.appendParameters(map, application);
+        // address就是监控中心的地址
         String address = null;
         String sysaddress = System.getProperty(DUBBO_MONITOR_ADDRESS);
         if (sysaddress != null && sysaddress.length() > 0) {
@@ -310,16 +330,20 @@ public class ConfigValidationUtils {
             return;
         }
 
+        // 归一化Mock配置
         String normalizedMock = MockInvoker.normalizeMock(mock);
+        // 正常固定值的mock
         if (normalizedMock.startsWith(RETURN_PREFIX)) {
             normalizedMock = normalizedMock.substring(RETURN_PREFIX.length()).trim();
             try {
                 //Check whether the mock value is legal, if it is illegal, throw exception
+                // 解析mock值，如果解析错误则抛异常
                 MockInvoker.parseMockValue(normalizedMock);
             } catch (Exception e) {
                 throw new IllegalStateException("Illegal mock return in <dubbo:service/reference ... " +
                         "mock=\"" + mock + "\" />");
             }
+        // 抛异常的mock
         } else if (normalizedMock.startsWith(THROW_PREFIX)) {
             normalizedMock = normalizedMock.substring(THROW_PREFIX.length()).trim();
             if (ConfigUtils.isNotEmpty(normalizedMock)) {

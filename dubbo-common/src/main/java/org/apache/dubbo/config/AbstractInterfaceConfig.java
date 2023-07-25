@@ -66,7 +66,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
      * The remote service group the customer/provider side will reference
      */
     protected String group;
-    
+
     protected ServiceMetadata serviceMetadata;
     /**
      * Local impl class name for the service interface
@@ -259,14 +259,18 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
      *                       side, it is the {@link Class} of the remote service interface
      */
     public void checkStubAndLocal(Class<?> interfaceClass) {
+        // local和stub一样，不建议使用了
         verifyStubAndLocal(local, "Local", interfaceClass);
+        // 本地存根
         verifyStubAndLocal(stub, "Stub", interfaceClass);
     }
-    
+
     public void verifyStubAndLocal(String className, String label, Class<?> interfaceClass){
     	if (ConfigUtils.isNotEmpty(className)) {
             Class<?> localClass = ConfigUtils.isDefault(className) ?
+                    // 如果本地存根为true，则存根类为interfaceName + "Stub"
                     ReflectUtils.forName(interfaceClass.getName() + label) : ReflectUtils.forName(className);
+                        // 检查存根类是否是接口的实现类，存根类是否有以接口或接口实现类为参数的构造函数
                         verify(interfaceClass, localClass);
             }
     }
@@ -366,7 +370,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
             }
         }
     }
-    
+
     protected void computeValidRegistryIds() {
         if (application != null && notHasSelfRegistryProperty()) {
             setRegistries(application.getRegistries());
@@ -713,14 +717,14 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     public SslConfig getSslConfig() {
         return ApplicationModel.getConfigManager().getSsl().orElse(null);
     }
-    
+
     public void initServiceMetadata(AbstractInterfaceConfig interfaceConfig) {
         serviceMetadata.setVersion(getVersion(interfaceConfig));
         serviceMetadata.setGroup(getGroup(interfaceConfig));
         serviceMetadata.setDefaultGroup(getGroup(interfaceConfig));
         serviceMetadata.setServiceInterfaceName(getInterface());
     }
-    
+
     public String getGroup(AbstractInterfaceConfig interfaceConfig) {
         return StringUtils.isEmpty(this.group) ? (interfaceConfig != null ? interfaceConfig.getGroup() : this.group) : this.group;
     }
@@ -728,7 +732,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     public String getVersion(AbstractInterfaceConfig interfaceConfig) {
         return StringUtils.isEmpty(this.version) ? (interfaceConfig != null ? interfaceConfig.getVersion() : this.version) : this.version;
     }
-    
+
     public String getVersion() {
         return version;
     }
@@ -744,11 +748,11 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     public void setGroup(String group) {
         this.group = group;
     }
-    
+
     public String getInterface() {
         return interfaceName;
     }
-    
+
     public void setInterface(String interfaceName) {
         this.interfaceName = interfaceName;
 //         if (StringUtils.isEmpty(id)) {

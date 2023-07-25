@@ -230,9 +230,11 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
     private void convertProtocolIdsToProtocols() {
         if (StringUtils.isEmpty(protocolIds)) {
             if (CollectionUtils.isEmpty(protocols)) {
+                // 如果服务没有配置协议，取配置的默认协议
                 List<ProtocolConfig> protocolConfigs = ApplicationModel.getConfigManager().getDefaultProtocols();
                 if (protocolConfigs.isEmpty()) {
                     protocolConfigs = new ArrayList<>(1);
+                    // 如果都没有，自己建一个默认的dubbo协议
                     ProtocolConfig protocolConfig = new ProtocolConfig();
                     protocolConfig.setDefault(true);
                     protocolConfig.refresh();
@@ -242,14 +244,17 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
                 setProtocols(protocolConfigs);
             }
         } else {
+            // 如果服务配置了 protocolIds，根据 id 添加服务的协议
             String[] arr = COMMA_SPLIT_PATTERN.split(protocolIds);
             List<ProtocolConfig> tmpProtocols = new ArrayList<>();
             Arrays.stream(arr).forEach(id -> {
                 if (tmpProtocols.stream().noneMatch(prot -> prot.getId().equals(id))) {
                     Optional<ProtocolConfig> globalProtocol = ApplicationModel.getConfigManager().getProtocol(id);
                     if (globalProtocol.isPresent()) {
+                        // 把已经配置的协议添加到服务的协议列表中去
                         tmpProtocols.add(globalProtocol.get());
                     } else {
+                        // 如果没有，自己建一个默认的带id的dubbo协议
                         ProtocolConfig protocolConfig = new ProtocolConfig();
                         protocolConfig.setId(id);
                         protocolConfig.refresh();
