@@ -65,6 +65,10 @@ public abstract class DubboBeanUtils {
     public static void registerCommonBeans(BeanDefinitionRegistry registry) {
 
         // Since 2.5.7 Register @Reference Annotation Bean Processor as an infrastructure Bean
+        // 注册一个ReferenceAnnotationBeanPostProcessor做为bean，ReferenceAnnotationBeanPostProcessor是一个BeanPostProcessor
+        // ReferenceAnnotationBeanPostProcessor，继承了AbstractAnnotationBeanPostProcessor，继而实现了InstantiationAwareBeanPostProcessorAdapter接口
+        // 所以Spring在启动时，在对属性进行注入时会调用AbstractAnnotationBeanPostProcessor类中的postProcessPropertyValues方法
+        // 在这个过程中会按照@Reference注解的信息去生成一个RefrenceBean对象
         registerInfrastructureBean(registry, ReferenceAnnotationBeanPostProcessor.BEAN_NAME,
                 ReferenceAnnotationBeanPostProcessor.class);
 

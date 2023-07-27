@@ -634,6 +634,7 @@ public abstract class AbstractConfig implements Serializable {
      */
     @PostConstruct
     public void addIntoConfigManager() {
+        // 把当前XxxConfig对象实例添加进配置管理器中
         ApplicationModel.getConfigManager().addConfig(this);
     }
 

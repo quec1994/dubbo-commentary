@@ -98,13 +98,13 @@ public class DubboAnnotationUtils {
             throws IllegalArgumentException {
 
         ClassLoader classLoader = defaultInterfaceClass != null ? defaultInterfaceClass.getClassLoader() : Thread.currentThread().getContextClassLoader();
-
+        // 从注解配置里获取服务的接口类
         Class<?> interfaceClass = getAttribute(attributes, "interfaceClass");
 
         if (void.class.equals(interfaceClass)) { // default or set void.class for purpose.
 
             interfaceClass = null;
-
+            // 从注解配置里获取服务的接口全限定名
             String interfaceClassName = getAttribute(attributes, "interfaceName");
 
             if (hasText(interfaceClassName)) {
@@ -116,11 +116,14 @@ public class DubboAnnotationUtils {
         }
 
         if (interfaceClass == null && defaultInterfaceClass != null) {
+            // 没有通过@DubboService配置实现类的接口，也就是服务的接口
             // Find all interfaces from the annotated class
             // To resolve an issue : https://github.com/apache/dubbo/issues/3251
             Class<?>[] allInterfaces = getAllInterfacesForClass(defaultInterfaceClass);
 
             if (allInterfaces.length > 0) {
+                // 取类实现的第1个接口
+                // 这里有BUG，如果服务的接口不是实现类implements的第一个接口，那注册到注册中心的接口就是错的，消费者就调不通
                 interfaceClass = allInterfaces[0];
             }
 

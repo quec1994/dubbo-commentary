@@ -41,7 +41,11 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @Documented
+// 转换Dubbo的配置成XxxConfig对象实例，并把对象实例添加进配置管理器中，AbstractConfig.addIntoConfigManager
+// 给spring注册Dubbo定制的 BeanPostProcessor、BeanFactoryPostProcessor、Listener
 @EnableDubboConfig
+// 扫描Dubbo服务实现类的包，给spring注册Dubbo服务实现类和ServiceBean的BeanDefinition
+// 给spring注册Dubbo定制的 BeanPostProcessor、BeanFactoryPostProcessor、Listener
 @DubboComponentScan
 public @interface EnableDubbo {
 

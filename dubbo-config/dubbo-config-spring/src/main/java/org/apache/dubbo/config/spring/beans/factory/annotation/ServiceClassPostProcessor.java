@@ -123,11 +123,17 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
     public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
 
         // @since 2.7.5
+        // 注册DubboBootstrapApplicationListener监听器
+        // 继承了OnceApplicationContextEventListener类，OnceApplicationContextEventListener实现了ApplicationListener接口，
+        // 所以在Spring启动完后会调用OnceApplicationContextEventListener的onApplicationEvent方法，
+        // 然后调用DubboBootstrapApplicationListener的onApplicationContextEvent方法，启动dubbo框架，进行服务导出
         registerInfrastructureBean(registry, DubboBootstrapApplicationListener.BEAN_NAME, DubboBootstrapApplicationListener.class);
 
+        // 根据环境变量对包路径进行占位符替换
         Set<String> resolvedPackagesToScan = resolvePackagesToScan(packagesToScan);
 
         if (!CollectionUtils.isEmpty(resolvedPackagesToScan)) {
+            // 扫描包，进行Bean注册
             registerServiceBeans(resolvedPackagesToScan, registry);
         } else {
             if (logger.isWarnEnabled()) {
@@ -148,26 +154,31 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         DubboClassPathBeanDefinitionScanner scanner =
                 new DubboClassPathBeanDefinitionScanner(registry, environment, resourceLoader);
 
+        // 获得spring的beanName创造器
         BeanNameGenerator beanNameGenerator = resolveBeanNameGenerator(registry);
 
         scanner.setBeanNameGenerator(beanNameGenerator);
 
         // refactor @since 2.7.7
         serviceAnnotationTypes.forEach(annotationType -> {
+            // 添加要扫描的DubboService（@DubboService、@Service）注解
             scanner.addIncludeFilter(new AnnotationTypeFilter(annotationType));
         });
 
         for (String packageToScan : packagesToScan) {
 
             // Registers @Service Bean first
+            // 在之前得到包路径下扫描被@DubboService注解标注的类
             scanner.scan(packageToScan);
 
             // Finds all BeanDefinitionHolders of @Service whether @ComponentScan scans or not.
+            // 查找被@DubboService注解的类的BeanDefinition（无论这个类有没有被@ComponentScan注解标注了）
             Set<BeanDefinitionHolder> beanDefinitionHolders =
                     findServiceBeanDefinitionHolders(scanner, packageToScan, registry, beanNameGenerator);
 
             if (!CollectionUtils.isEmpty(beanDefinitionHolders)) {
 
+                // 得到BeanDefinition开始处理它
                 for (BeanDefinitionHolder beanDefinitionHolder : beanDefinitionHolders) {
                     registerServiceBean(beanDefinitionHolder, registry, scanner);
                 }
@@ -244,14 +255,15 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
     private Set<BeanDefinitionHolder> findServiceBeanDefinitionHolders(
             ClassPathBeanDefinitionScanner scanner, String packageToScan, BeanDefinitionRegistry registry,
             BeanNameGenerator beanNameGenerator) {
-
+        // 取出路径下扫描到的被@DubboService注解修饰的类的BeanDefinition
         Set<BeanDefinition> beanDefinitions = scanner.findCandidateComponents(packageToScan);
 
         Set<BeanDefinitionHolder> beanDefinitionHolders = new LinkedHashSet<>(beanDefinitions.size());
 
         for (BeanDefinition beanDefinition : beanDefinitions) {
-
+            // 通过spring的bean名称生成器生成一个服务实现类的BeanName
             String beanName = beanNameGenerator.generateBeanName(beanDefinition, registry);
+            // 组装成BeanDefinitionHolder
             BeanDefinitionHolder beanDefinitionHolder = new BeanDefinitionHolder(beanDefinition, beanName);
             beanDefinitionHolders.add(beanDefinitionHolder);
 
@@ -273,27 +285,39 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
     private void registerServiceBean(BeanDefinitionHolder beanDefinitionHolder, BeanDefinitionRegistry registry,
                                      DubboClassPathBeanDefinitionScanner scanner) {
 
+        // 服务实现类
         Class<?> beanClass = resolveClass(beanDefinitionHolder);
 
+        // @DubboService注解配置
         Annotation service = findServiceAnnotation(beanClass);
 
         /**
          * The {@link AnnotationAttributes} of @DubboService annotation
          */
+        // @DubboService注解上配置的属性信息
         AnnotationAttributes serviceAnnotationAttributes = getAnnotationAttributes(service, false, false);
 
+        // 服务实现类对应的接口
         Class<?> interfaceClass = resolveServiceInterfaceClass(serviceAnnotationAttributes, beanClass);
-
+        // 服务实现类对应的bean的名字，比如：demoServiceImpl
         String annotatedServiceBeanName = beanDefinitionHolder.getBeanName();
+        // ServiceBean:org.apache.dubbo.demo.DemoService
 
+        // 构造一个ServiceBean的BeanDefinition
         AbstractBeanDefinition serviceBeanDefinition =
                 buildServiceBeanDefinition(service, serviceAnnotationAttributes, interfaceClass, annotatedServiceBeanName);
 
         // ServiceBean Bean name
+        // 构根据服务的接口类和注解的配置构造一个ServiceBean的BeanName
         String beanName = generateServiceBeanName(serviceAnnotationAttributes, interfaceClass);
+        // ServiceBean:org.apache.dubbo.demo.DemoService
 
+        // 判断serviceBeanDefinition是不是已经注册过了
         if (scanner.checkCandidate(beanName, serviceBeanDefinition)) { // check duplicated candidate bean
+            // 注册serviceBeanDefinition，好让spring生成并管理serviceBean
             registry.registerBeanDefinition(beanName, serviceBeanDefinition);
+
+            // 如果没有配置id，将构造好的beanName赋值给id
             if (!serviceBeanDefinition.getPropertyValues().contains("id")) {
                 serviceBeanDefinition.getPropertyValues().addPropertyValue("id", beanName);
             }
@@ -366,6 +390,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         Set<String> resolvedPackagesToScan = new LinkedHashSet<String>(packagesToScan.size());
         for (String packageToScan : packagesToScan) {
             if (StringUtils.hasText(packageToScan)) {
+                // 对包路径进行占位符替换
                 String resolvedPackageToScan = environment.resolvePlaceholders(packageToScan.trim());
                 resolvedPackagesToScan.add(resolvedPackageToScan);
             }
@@ -387,27 +412,36 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
                                                               AnnotationAttributes serviceAnnotationAttributes,
                                                               Class<?> interfaceClass,
                                                               String annotatedServiceBeanName) {
-
+        // 生成一个ServiceBean对应的BeanDefinition
         BeanDefinitionBuilder builder = rootBeanDefinition(ServiceBean.class);
 
         AbstractBeanDefinition beanDefinition = builder.getBeanDefinition();
 
         MutablePropertyValues propertyValues = beanDefinition.getPropertyValues();
 
+        // 这些bean类型的配置属性，在转存基本数据类型的配置属性时排除，后面单独转存
         String[] ignoreAttributeNames = of("provider", "monitor", "application", "module", "registry", "protocol",
                 "interface", "interfaceName", "parameters");
 
+        // 先转存基本数据类型的配置属性
+        // 把serviceAnnotation中的参数值赋值给ServiceBean的属性
         propertyValues.addPropertyValues(new AnnotationPropertyValuesAdapter(serviceAnnotation, environment, ignoreAttributeNames));
 
+        // 再一个一个转存bean类型的属性
         // References "ref" property to annotated-@Service Bean
+        // ref属性赋值为另外一个bean, 对应的就是被@DubboService注解的服务实现类对应的bean
         addPropertyReference(builder, "ref", annotatedServiceBeanName);
         // Set interface
+        // 服务接口类名赋值给ServiceBean的interface属性
         builder.addPropertyValue("interface", interfaceClass.getName());
         // Convert parameters into map
+        // @DubboService注解上配置的parameters赋值给ServiceBean的parameters属性
         builder.addPropertyValue("parameters", DubboAnnotationUtils.convertParameters(serviceAnnotationAttributes.getStringArray("parameters")));
         // Add methods parameters
+        // 将@DubboService注解上配置的methods转换成MethodConfig
         List<MethodConfig> methodConfigs = convertMethodConfigs(serviceAnnotationAttributes.get("methods"));
         if (!methodConfigs.isEmpty()) {
+            // 配置了methods属性，则给ServiceBean对应的methods属性赋值
             builder.addPropertyValue("methods", methodConfigs);
         }
 
@@ -416,6 +450,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
          */
         String providerConfigBeanName = serviceAnnotationAttributes.getString("provider");
         if (StringUtils.hasText(providerConfigBeanName)) {
+            // 配置了provider属性，则给ServiceBean对应的provider属性赋指定的ProviderConfig bean
             addPropertyReference(builder, "provider", providerConfigBeanName);
         }
 
@@ -424,6 +459,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
          */
         String monitorConfigBeanName = serviceAnnotationAttributes.getString("monitor");
         if (StringUtils.hasText(monitorConfigBeanName)) {
+            // 配置了monitor属性，则给ServiceBean对应的provider属性赋指定的MonitorConfig bean
             addPropertyReference(builder, "monitor", monitorConfigBeanName);
         }
 
@@ -432,6 +468,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
          */
         String applicationConfigBeanName = serviceAnnotationAttributes.getString("application");
         if (StringUtils.hasText(applicationConfigBeanName)) {
+            // 配置了application属性，则给ServiceBean对应的application属性赋指定的ApplicationConfig bean
             addPropertyReference(builder, "application", applicationConfigBeanName);
         }
 
@@ -440,6 +477,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
          */
         String moduleConfigBeanName = serviceAnnotationAttributes.getString("module");
         if (StringUtils.hasText(moduleConfigBeanName)) {
+            // 配置了module属性，则给ServiceBean对应的module属性赋指定的ModuleConfig bean
             addPropertyReference(builder, "module", moduleConfigBeanName);
         }
 
@@ -449,9 +487,11 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
          */
         String[] registryConfigBeanNames = serviceAnnotationAttributes.getStringArray("registry");
 
+        // 将配置的registry属性值转换成spring 的 RuntimeBeanReference，后期spring会自动转换
         List<RuntimeBeanReference> registryRuntimeBeanReferences = toRuntimeBeanReferences(registryConfigBeanNames);
 
         if (!registryRuntimeBeanReferences.isEmpty()) {
+            // 配置了registry属性，则给ServiceBean对应的registries属性赋指定的RegistryConfig bean集合
             builder.addPropertyValue("registries", registryRuntimeBeanReferences);
         }
 
@@ -460,9 +500,11 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
          */
         String[] protocolConfigBeanNames = serviceAnnotationAttributes.getStringArray("protocol");
 
+        // 将配置的protocol属性值转换成spring 的 RuntimeBeanReference，后期spring会自动转换
         List<RuntimeBeanReference> protocolRuntimeBeanReferences = toRuntimeBeanReferences(protocolConfigBeanNames);
 
         if (!protocolRuntimeBeanReferences.isEmpty()) {
+            // 配置了protocol属性，则给ServiceBean对应的protocols属性赋指定的ProtocolConfig bean集合
             builder.addPropertyValue("protocols", protocolRuntimeBeanReferences);
         }
 
@@ -497,7 +539,9 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
     }
 
     private void addPropertyReference(BeanDefinitionBuilder builder, String propertyName, String beanName) {
+        // 解析beanName上的占位符
         String resolvedBeanName = environment.resolvePlaceholders(beanName);
+        // 给builder添加引用类型的属性，后期spring会把resolvedBeanName对应的bean赋值给propertyName
         builder.addPropertyReference(propertyName, resolvedBeanName);
     }
 

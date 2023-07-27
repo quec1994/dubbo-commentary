@@ -107,6 +107,10 @@ public class ServiceBeanNameBuilder {
     }
 
     public String build() {
+        // 构造ServiceBean的名字
+        // 生成的字符串格式 ServiceBean:interfaceClassName:version:group
+        // 会解析字符串里的占位符
+
         StringBuilder beanNameBuilder = new StringBuilder("ServiceBean");
         // Required
         append(beanNameBuilder, interfaceClassName);
