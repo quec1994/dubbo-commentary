@@ -70,13 +70,20 @@ public class ExtensionLoader<T> {
     private static final ConcurrentMap<Class<?>, Object> EXTENSION_INSTANCES = new ConcurrentHashMap<>(64);
 
     private final Class<?> type;
-
+    /**
+     * 在创建ExtensionLoader实例的时候赋值，实际就是 AdaptiveExtensionFactory
+     */
     private final ExtensionFactory objectFactory;
 
     private final ConcurrentMap<Class<?>, String> cachedNames = new ConcurrentHashMap<>();
 
     private final Holder<Map<String, Class<?>>> cachedClasses = new Holder<>();
 
+    /**
+     * 被Activate注解了的扩展点实现类的名字和Activate注解配置缓存
+     * key:扩展点实现类name
+     * value:Activate注解配置
+     */
     private final Map<String, Object> cachedActivates = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Holder<Object>> cachedInstances = new ConcurrentHashMap<>();
     private final Holder<Object> cachedAdaptiveInstance = new Holder<>();
@@ -149,9 +156,12 @@ public class ExtensionLoader<T> {
                     ") is not an extension, because it is NOT annotated with @" + SPI.class.getSimpleName() + "!");
         }
 
+        // 创建一个扩展点类型的ExtensionLoader
         ExtensionLoader<T> loader = (ExtensionLoader<T>) EXTENSION_LOADERS.get(type);
         if (loader == null) {
+            // 存入缓存，如果缓存中不存在的话
             EXTENSION_LOADERS.putIfAbsent(type, new ExtensionLoader<T>(type));
+            // 从缓存中拿出ExtensionLoader，从缓存中拿的意义是保证在多线程下拿出来的是同一个ExtensionLoader
             loader = (ExtensionLoader<T>) EXTENSION_LOADERS.get(type);
         }
         return loader;
@@ -389,6 +399,7 @@ public class ExtensionLoader<T> {
     }
 
     private Holder<Object> getOrCreateHolder(String name) {
+        // 扩展点<name:instance>缓存
         Holder<Object> holder = cachedInstances.get(name);
         if (holder == null) {
             cachedInstances.putIfAbsent(name, new Holder<>());
@@ -424,6 +435,7 @@ public class ExtensionLoader<T> {
      */
     @SuppressWarnings("unchecked")
     public T getExtension(String name) {
+        // 根据指定的name查找扩展点实现类对象实例
         return getExtension(name, true);
     }
 
@@ -664,11 +676,12 @@ public class ExtensionLoader<T> {
         // 获取扩展点实现类
         Class<?> clazz = getExtensionClasses().get(name);
         if (clazz == null || unacceptableExceptions.contains(name)) {
-            // 没有对应的扩展点实现类，或者加载扩展点实现类时出现一场
+            // 没有对应的扩展点实现类，或者加载扩展点实现类时出现异常
             throw findException(name);
         }
         try {
             // 扩展点实现类对象实例缓存
+            // 此处是扩展点<实现类:instance>缓存，getExtension方法是<name:instance>缓存
             T instance = (T) EXTENSION_INSTANCES.get(clazz);
             if (instance == null) {
                 // 创建对象实例
@@ -676,10 +689,10 @@ public class ExtensionLoader<T> {
                 instance = (T) EXTENSION_INSTANCES.get(clazz);
             }
 
-            // Dubbo 的依赖注入 IOC
+            // Dubbo 的依赖注入 IOC，扩展点实现类对象实例属性注入
             injectExtension(instance);
 
-
+            // 对依赖注入后的实例进行AOP（Wrapper）
             if (wrap) {
 
                 List<Class<?>> wrapperClassesList = new ArrayList<>();
@@ -688,18 +701,20 @@ public class ExtensionLoader<T> {
                     wrapperClassesList.sort(WrapperComparator.COMPARATOR);
                     Collections.reverse(wrapperClassesList);
                 }
-
+                // 把当前扩展点所有的Wrapper实现类全部一层一层包裹在找到的扩展点实现类对象实例上
                 if (CollectionUtils.isNotEmpty(wrapperClassesList)) {
                     for (Class<?> wrapperClass : wrapperClassesList) {
                         Wrapper wrapper = wrapperClass.getAnnotation(Wrapper.class);
                         if (wrapper == null
                                 || (ArrayUtils.contains(wrapper.matches(), name) && !ArrayUtils.contains(wrapper.mismatches(), name))) {
+                            // 使用Wrapper类包装扩展点实现类对象实例，每包裹一个Wrapper后，也会对Wrapper对象进行依赖注入
                             instance = injectExtension((T) wrapperClass.getConstructor(type).newInstance(instance));
                         }
                     }
                 }
             }
 
+            // 调用初始化方法
             initExtension(instance);
             return instance;
         } catch (Throwable t) {
@@ -824,7 +839,7 @@ public class ExtensionLoader<T> {
 
     private Map<String, Class<?>> getExtensionClasses() {
         // cachedClasses是一个Holder对象，持有的就是一个Map<String, Class<?>>
-        // 为什么要多此一举，也是为了解决并发，Holder对象用来作为锁
+        // 为什么要多此一举，也是为了解决并发，Holder对象用来作为锁，细化锁的范围
         Map<String, Class<?>> classes = cachedClasses.get();
         if (classes == null) {
             synchronized (cachedClasses) {
@@ -936,7 +951,7 @@ public class ExtensionLoader<T> {
                 while ((line = reader.readLine()) != null) {
                     final int ci = line.indexOf('#');
                     if (ci >= 0) {
-                        // 去掉 # 后的内容
+                        // 去掉 # 以及 # 后的内容
                         line = line.substring(0, ci);
                     }
                     line = line.trim();
@@ -945,8 +960,9 @@ public class ExtensionLoader<T> {
                             String name = null;
                             int i = line.indexOf('=');
                             if (i > 0) {
+                                // 取 = 前的字符串做扩展点实现类名字
                                 name = line.substring(0, i).trim();
-                                // 取 = 后的扩展点实现类全限定名
+                                // 取 = 后的字符串做扩展点实现类全限定名
                                 clazz = line.substring(i + 1).trim();
                             } else {
                                 // 没有配置名称的扩展点实现类全限定名
@@ -990,10 +1006,12 @@ public class ExtensionLoader<T> {
                     + clazz.getName() + " is not subtype of interface.");
         }
         if (clazz.isAnnotationPresent(Adaptive.class)) {
-            // 当前扩展点实现类手动指定了为Adaptive类
+            // 当前扩展点实现类是默认自适应类
+            // 判断方法：当前扩展点实现类上存在@Adaptive注解
             cacheAdaptiveClass(clazz, overridden);
         } else if (isWrapperClass(clazz)) {
             // 当前扩展点实现类是一个Wrapper类
+            // 判断方法：就是看当前类中是否存在一个构造方法，该构造方法只有一个参数，参数类型为接口类型，如果存在这一的构造方法，那么这个类就是该接口的Wrapper实现类
             cacheWrapperClass(clazz);
         } else {
             // 扩展点实现类需要有无参的构造方法，否则报错
@@ -1010,8 +1028,8 @@ public class ExtensionLoader<T> {
 
             String[] names = NAME_SEPARATOR.split(name);
             if (ArrayUtils.isNotEmpty(names)) {
-                // 缓存一下被Activate注解了的类
-                // 缓存被Activate注解标记了的类，表示这个扩展点在什么时候能用
+                // 缓存一下被Activate注解了的扩展点实现类的名字和Activate注解配置
+                // 缓存被Activate注解标记了的类，表示这个扩展点在什么条件下能用
                 cacheActivateClass(clazz, names[0]);
 
                 // 定义了多个名字

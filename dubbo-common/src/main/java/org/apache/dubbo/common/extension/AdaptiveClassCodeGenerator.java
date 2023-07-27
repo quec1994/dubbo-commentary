@@ -202,10 +202,16 @@ public class AdaptiveClassCodeGenerator {
         Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);
         StringBuilder code = new StringBuilder(512);
         if (adaptiveAnnotation == null) {
-            // 方法上不存在Adaptive注解的话，在调用时直接抛UnsupportedOperationException异常
+            // 方法上不存在Adaptive注解的话，
+            // 在调用时直接抛UnsupportedOperationException异常
             return generateUnsupported(method);
         } else {
-            // 方法上存在Adaptive注解才进行代理
+            // 只有方法上加了@Adaptive注解才可能会生成代理逻辑。
+            // 但是不只要在方法上加@Adaptive注解，还有其他条件，比如：
+            //   1. 该方法如果是无参的，那么不会生成代理逻辑，直接抛异常
+            //   2. 该方法有参数有一个或多个，并且其中某个参数类型是URL，那么会生成代理逻辑
+            //   3. 该方法有参数有一个或多个，没有URL类型的参数，但是如果这些参数类型对应的类中存在getUrl方法（或者返回值类型为URL），那么也会生成代理逻辑
+            //   4. 该方法有参数有一个或多个，但是没有URL类型的参数，这些参数类型对应的类中也不存在getUrl方法（或者返回值类型为URL），那么不会生成代理逻辑，直接抛异常
 
             // 方法中URL类型参数的下标
             int urlTypeIndex = getUrlTypeIndex(method);
