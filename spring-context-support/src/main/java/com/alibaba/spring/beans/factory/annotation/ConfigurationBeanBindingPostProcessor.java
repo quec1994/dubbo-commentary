@@ -76,10 +76,14 @@ public class ConfigurationBeanBindingPostProcessor implements BeanPostProcessor,
     @Override
     public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
 
+        // 根据Bean名称获取BeanDefinition
         BeanDefinition beanDefinition = getNullableBeanDefinition(beanName);
 
+        // 判断需不需要处理
         if (isConfigurationBean(bean, beanDefinition)) {
             bindConfigurationBean(bean, beanDefinition);
+            // 对bean做定制化处理
+            // 默认的定制化处理：用来把某个XxConfig所对应的beanName设置到name属性中去——已废弃状态
             customize(beanName, bean);
         }
 
@@ -137,7 +141,9 @@ public class ConfigurationBeanBindingPostProcessor implements BeanPostProcessor,
 
     private boolean isConfigurationBean(Object bean, BeanDefinition beanDefinition) {
         return beanDefinition != null &&
+                // 判断BeanDefinition上有没有标记，处理源是不是这个类
                 ENABLE_CONFIGURATION_BINDING_CLASS.equals(beanDefinition.getSource())
+                // 自己使用@Bean方式交给spring管理的Bean没有BeanDefinition
                 && nullSafeEquals(getBeanClassName(bean), beanDefinition.getBeanClassName());
     }
 
@@ -147,12 +153,14 @@ public class ConfigurationBeanBindingPostProcessor implements BeanPostProcessor,
 
     private void bindConfigurationBean(Object configurationBean, BeanDefinition beanDefinition) {
 
+        // 从beanDefinition属性中取出保存的配置项
         Map<String, Object> configurationProperties = getConfigurationProperties(beanDefinition);
 
         boolean ignoreUnknownFields = getIgnoreUnknownFields(beanDefinition);
 
         boolean ignoreInvalidFields = getIgnoreInvalidFields(beanDefinition);
 
+        // 将配置项和配置Bean的属性绑定，后面spring生成Bean的时候会自动赋值
         getConfigurationBeanBinder().bind(configurationProperties, ignoreUnknownFields, ignoreInvalidFields, configurationBean);
 
         if (log.isInfoEnabled()) {
@@ -199,6 +207,7 @@ public class ConfigurationBeanBindingPostProcessor implements BeanPostProcessor,
     static void initBeanMetadataAttributes(AbstractBeanDefinition beanDefinition,
                                            Map<String, Object> configurationProperties,
                                            boolean ignoreUnknownFields, boolean ignoreInvalidFields) {
+        // 放入配置项
         beanDefinition.setAttribute(CONFIGURATION_PROPERTIES_ATTRIBUTE_NAME, configurationProperties);
         beanDefinition.setAttribute(IGNORE_UNKNOWN_FIELDS_ATTRIBUTE_NAME, ignoreUnknownFields);
         beanDefinition.setAttribute(IGNORE_INVALID_FIELDS_ATTRIBUTE_NAME, ignoreInvalidFields);

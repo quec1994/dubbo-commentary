@@ -40,13 +40,21 @@ public class ConfigurationBeanBindingsRegister implements ImportBeanDefinitionRe
         AnnotationAttributes attributes = AnnotationAttributes.fromMap(
                 importingClassMetadata.getAnnotationAttributes(EnableConfigurationBeanBindings.class.getName()));
 
+        // 拿到@EnableConfigurationBeanBindings注解里里面配置的多个@EnableDubboConfigBinding注解里配置的属性
         AnnotationAttributes[] annotationAttributes = attributes.getAnnotationArray("value");
 
+        // 构造注册器
         ConfigurationBeanBindingRegistrar registrar = new ConfigurationBeanBindingRegistrar();
-
+        // 把spring环境注入
         registrar.setEnvironment(environment);
 
         for (AnnotationAttributes element : annotationAttributes) {
+            // 逐个解析@EnableDubboConfigBinding注解，
+            // 比如@EnableConfigurationBeanBinding(prefix = "dubbo.protocols", type = ProtocolConfig.class, multiple = true),
+
+            // element 时 @EnableDubboConfigBinding注解里配置的属性
+            // {"prefix":"dubbo.protocols","type":"org.apache.dubbo.config.ProtocolConfig","multiple":true,"ignoreInvalidFields":true,"ignoreUnknownFields":true}
+
             registrar.registerConfigurationBeanDefinitions(element, registry);
         }
     }

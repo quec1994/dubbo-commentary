@@ -18,7 +18,6 @@ package org.apache.dubbo.config.spring.context.config;
 
 import org.apache.dubbo.config.AbstractConfig;
 import org.apache.dubbo.config.spring.beans.factory.config.DubboConfigDefaultPropertyValueBeanPostProcessor;
-
 import org.springframework.util.ReflectionUtils;
 
 import java.beans.PropertyDescriptor;
@@ -56,16 +55,19 @@ public class NamePropertyDefaultValueDubboConfigBeanCustomizer implements DubboC
         PropertyDescriptor propertyDescriptor = getPropertyDescriptor(dubboConfigBean.getClass(), PROPERTY_NAME);
 
         if (propertyDescriptor != null) { // "name" property is present
+            // Bean的属性中存在Name属性
 
             Method getNameMethod = propertyDescriptor.getReadMethod();
 
             if (getNameMethod == null) { // if "getName" method is absent
+                // Bean的方法中没有getName方法
                 return;
             }
 
             Object propertyValue = ReflectionUtils.invokeMethod(getNameMethod, dubboConfigBean);
 
             if (propertyValue != null) { // If The return value of "getName" method is not null
+                // Bean的属性中存在Name属性有值
                 return;
             }
 
@@ -73,6 +75,7 @@ public class NamePropertyDefaultValueDubboConfigBeanCustomizer implements DubboC
             if (setNameMethod != null) { // "setName" and "getName" methods are present
                 if (Arrays.equals(of(String.class), setNameMethod.getParameterTypes())) { // the param type is String
                     // set bean name to the value of the "name" property
+                    // 将Bean的Name属性赋值为beanName
                     ReflectionUtils.invokeMethod(setNameMethod, dubboConfigBean, beanName);
                 }
             }

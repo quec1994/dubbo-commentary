@@ -86,6 +86,7 @@ public abstract class AnnotatedBeanDefinitionRegistryUtils {
      * @param annotatedClasses {@link Annotation annotation} class
      */
     public static void registerBeans(BeanDefinitionRegistry registry, Class<?>... annotatedClasses) {
+        // 通用逻辑，将注解注册进spring注册表中
 
         if (ObjectUtils.isEmpty(annotatedClasses)) {
             return;
@@ -102,13 +103,15 @@ public abstract class AnnotatedBeanDefinitionRegistryUtils {
                 iterator.remove();
             }
         }
-
+        // 构造spring的注解bean定义读取器，带spring注册表
         AnnotatedBeanDefinitionReader reader = new AnnotatedBeanDefinitionReader(registry);
 
         if (logger.isDebugEnabled()) {
             logger.debug(registry.getClass().getSimpleName() + " will register annotated classes : " + asList(annotatedClasses) + " .");
         }
 
+        // 利用Spring中的AnnotatedBeanDefinitionReader来解析annotatedClasses
+        // 会解析该类上的注解，然后进行处理
         reader.register(classesToRegister.toArray(EMPTY_CLASS_ARRAY));
 
     }

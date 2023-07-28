@@ -32,6 +32,7 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
+// 主要逻辑实现在 ConfigurationBeanBindingsRegister
 @Import(ConfigurationBeanBindingsRegister.class)
 public @interface EnableConfigurationBeanBindings {
 

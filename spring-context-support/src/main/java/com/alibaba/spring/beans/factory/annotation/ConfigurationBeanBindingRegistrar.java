@@ -78,16 +78,23 @@ public class ConfigurationBeanBindingRegistrar implements ImportBeanDefinitionRe
     public void registerConfigurationBeanDefinitions(Map<String, Object> attributes, BeanDefinitionRegistry registry) {
 
         String prefix = getRequiredAttribute(attributes, "prefix");
+        // dubbo.protocols
 
+        // 利用环境变量解析占位符
         prefix = environment.resolvePlaceholders(prefix);
+        // dubbo.protocols
 
         Class<?> configClass = getRequiredAttribute(attributes, "type");
+        // org.apache.dubbo.config.ProtocolConfig
 
         boolean multiple = getAttribute(attributes, "multiple", valueOf(DEFAULT_MULTIPLE));
+        // true
 
         boolean ignoreUnknownFields = getAttribute(attributes, "ignoreUnknownFields", valueOf(DEFAULT_IGNORE_UNKNOWN_FIELDS));
+        // true
 
         boolean ignoreInvalidFields = getAttribute(attributes, "ignoreInvalidFields", valueOf(DEFAULT_IGNORE_INVALID_FIELDS));
+        // true
 
         registerConfigurationBeans(prefix, configClass, multiple, ignoreUnknownFields, ignoreInvalidFields, registry);
     }
@@ -97,8 +104,10 @@ public class ConfigurationBeanBindingRegistrar implements ImportBeanDefinitionRe
                                             boolean ignoreUnknownFields, boolean ignoreInvalidFields,
                                             BeanDefinitionRegistry registry) {
 
+        // 从spring读取到的配置源中根据前缀筛选出对应的配置项，并且将配置项的前缀去除
         Map<String, Object> configurationProperties = PropertySourcesUtils.getSubProperties(environment.getPropertySources(), environment, prefix);
 
+        // 如果没有相关的配置项，则不需要注册BeanDefinition
         if (CollectionUtils.isEmpty(configurationProperties)) {
             if (log.isDebugEnabled()) {
                 log.debug("There is no property for binding to configuration class [" + configClass.getName()
@@ -107,14 +116,25 @@ public class ConfigurationBeanBindingRegistrar implements ImportBeanDefinitionRe
             return;
         }
 
+        // 根据配置项生成beanNames，为什么会有多个？
+        // 普通情况一个dubbo.protocol前缀拿到的configurationProperties是 {"name":"dubbo","port":"20880"}，
+        // 对应一个ProtocolConfig类型的Bean；
+        // 特殊情况下，比如dubbo.protocols前缀最后拿到的configurationProperties是 {"p1.name":"dubbo","p1.port":"20880","p2.name":"dubbo","p2.port":"20880"}
+        // 那么就对应两个ProtocolConfig类型的Bean，那么就有两个beanName:p1和p2
+
+        // 这里就是multiple为true或false的区别，bean名字的区别，根据multiple用来判断是否从配置项中获取beanName
+        // 如果multiple为false，则看有没有配置id属性，如果没有配置则自动生成一个beanName.
         Set<String> beanNames = multiple ? resolveMultipleBeanNames(configurationProperties) :
                 singleton(resolveSingleBeanName(configurationProperties, configClass, registry));
 
         for (String beanName : beanNames) {
+
+            // 为每个beanName,注册一个空的带配置项属性的BeanDefinition
             registerConfigurationBean(beanName, configClass, multiple, ignoreUnknownFields, ignoreInvalidFields,
                     configurationProperties, registry);
         }
 
+        // 注册一个ConfigurationBeanBindingPostProcessor的Bean后置处理器，用来将配置项和XxxConfig对象实例属性绑定
         registerConfigurationBindingBeanPostProcessor(registry);
     }
 
@@ -127,10 +147,13 @@ public class ConfigurationBeanBindingRegistrar implements ImportBeanDefinitionRe
 
         AbstractBeanDefinition beanDefinition = builder.getBeanDefinition();
 
+        // 做记号，把 EnableConfigurationBeanBinding.class 放入beanDefinition的source
         setSource(beanDefinition);
 
+        // 筛选beanName配置项，并且去除配置项key的beanName前缀
         Map<String, Object> subProperties = resolveSubProperties(multiple, beanName, configurationProperties);
 
+        // 将数据仿佛beanDefinition的属性集合中
         initBeanMetadataAttributes(beanDefinition, subProperties, ignoreUnknownFields, ignoreInvalidFields);
 
         registry.registerBeanDefinition(beanName, beanDefinition);
@@ -147,10 +170,13 @@ public class ConfigurationBeanBindingRegistrar implements ImportBeanDefinitionRe
             return configurationProperties;
         }
 
+        // 构造一个动态多属性源
         MutablePropertySources propertySources = new MutablePropertySources();
 
+        // 将配置项包装成属性源放入
         propertySources.addLast(new MapPropertySource("_", configurationProperties));
 
+        // 从配置项Map中筛选出beanName前缀的配置项，并且将配置项的beanName前缀去除
         return getSubProperties(propertySources, environment, normalizePrefix(beanName));
     }
 
@@ -176,12 +202,16 @@ public class ConfigurationBeanBindingRegistrar implements ImportBeanDefinitionRe
 
         Set<String> beanNames = new LinkedHashSet<String>();
 
+        // 比如dubbo.protocols.p1.name=dubbo的propertyName为p1.name
+
         for (String propertyName : properties.keySet()) {
+            // propertyName为p1.name
 
             int index = propertyName.indexOf(".");
 
             if (index > 0) {
 
+                // 截取beanName名字为p1
                 String beanName = propertyName.substring(0, index);
 
                 beanNames.add(beanName);
@@ -196,9 +226,11 @@ public class ConfigurationBeanBindingRegistrar implements ImportBeanDefinitionRe
     private String resolveSingleBeanName(Map<String, Object> properties, Class<?> configClass,
                                          BeanDefinitionRegistry registry) {
 
+        // 配置了dubbo.application.id=appl，那么appl就是beanName
         String beanName = (String) properties.get("id");
 
         if (!StringUtils.hasText(beanName)) {
+            // 如果beanName为null，则会进入if分支，由spring自动生成一个beanName,比如org.apache.dubbo.config.ApplicationConfig#0
             BeanDefinitionBuilder builder = rootBeanDefinition(configClass);
             beanName = BeanDefinitionReaderUtils.generateBeanName(builder.getRawBeanDefinition(), registry);
         }

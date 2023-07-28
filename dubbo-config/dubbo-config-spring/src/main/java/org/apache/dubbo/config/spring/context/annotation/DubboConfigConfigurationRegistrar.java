@@ -17,7 +17,6 @@
 package org.apache.dubbo.config.spring.context.annotation;
 
 import org.apache.dubbo.config.AbstractConfig;
-
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.context.ApplicationContext;
@@ -52,13 +51,19 @@ public class DubboConfigConfigurationRegistrar implements ImportBeanDefinitionRe
         boolean multiple = attributes.getBoolean("multiple");
 
         // Single Config Bindings
+        // 注册没有指定bean名称的配置
+        // 后续逻辑主要在 DubboConfigConfiguration.Single 上
         registerBeans(registry, DubboConfigConfiguration.Single.class);
 
         if (multiple) { // Since 2.6.6 https://github.com/apache/dubbo/issues/3193
+            // 注册指定bean名称的配置
+            // 后续逻辑主要在 DubboConfigConfiguration.Multiple 上
             registerBeans(registry, DubboConfigConfiguration.Multiple.class);
         }
 
         // Since 2.7.6
+        // 给spring注册Dubbo定制的 ReferenceAnnotationBeanPostProcessor 扫描和构造服务引用代理类
+        // 给spring注册Dubbo定制的其他 BeanPostProcessor、BeanFactoryPostProcessor、Listener
         registerCommonBeans(registry);
     }
 
