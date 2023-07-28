@@ -16,11 +16,10 @@
  */
 package org.apache.dubbo.config.spring.beans.factory.config;
 
+import com.alibaba.spring.beans.factory.config.GenericBeanPostProcessorAdapter;
 import org.apache.dubbo.common.utils.StringUtils;
 import org.apache.dubbo.config.AbstractConfig;
 import org.apache.dubbo.config.ProtocolConfig;
-
-import com.alibaba.spring.beans.factory.config.GenericBeanPostProcessorAdapter;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.InitDestroyAnnotationBeanPostProcessor;
 import org.springframework.beans.factory.config.BeanPostProcessor;
@@ -55,13 +54,16 @@ public class DubboConfigDefaultPropertyValueBeanPostProcessor extends GenericBea
 
     protected void processBeforeInitialization(AbstractConfig dubboConfigBean, String beanName) throws BeansException {
         // [Feature] https://github.com/apache/dubbo/issues/5721
+        // 如果ConfigBean没有配置id，则把beanName赋值给id
         setBeanNameAsDefaultValue(dubboConfigBean, "id", beanName);
         if (dubboConfigBean instanceof ProtocolConfig) {
+            // 如果ProtocolConfig Bean没有配置name，则把name属性赋值为 dubbo
             ProtocolConfig config = (ProtocolConfig) dubboConfigBean;
             if (StringUtils.isEmpty(config.getName())) {
                 config.setName("dubbo");
             }
         } else {
+            // 如果ConfigBean没有配置name，则把beanName赋值给name
             setBeanNameAsDefaultValue(dubboConfigBean, "name", beanName);
         }
     }
@@ -78,23 +80,31 @@ public class DubboConfigDefaultPropertyValueBeanPostProcessor extends GenericBea
         PropertyDescriptor propertyDescriptor = getPropertyDescriptor(beanClass, propertyName);
 
         if (propertyDescriptor != null) { // the property is present
+            // Bean的属性中存在propertyName属性
 
             Method getterMethod = propertyDescriptor.getReadMethod();
 
             if (getterMethod == null) { // if The getter method is absent
+
                 return;
             }
+            // Bean的方法中存在获取propertyName方法
 
             Object propertyValue = invokeMethod(getterMethod, bean);
 
             if (propertyValue != null) { // If The return value of "getName" method is not null
                 return;
             }
+            // Bean的propertyName属性没有值
 
             Method setterMethod = propertyDescriptor.getWriteMethod();
             if (setterMethod != null) { // the getter and setter methods are present
+                // Bean的方法中存在给propertyName赋值方法
                 if (Arrays.equals(of(String.class), setterMethod.getParameterTypes())) { // the param type is String
+                    // Bean的propertyName属性是String类型的
+
                     // set bean name to the value of the the property
+                    // 将beanName赋值给Bean的propertyName属性
                     invokeMethod(setterMethod, bean, beanName);
                 }
             }

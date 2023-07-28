@@ -67,7 +67,7 @@ public class NamePropertyDefaultValueDubboConfigBeanCustomizer implements DubboC
             Object propertyValue = ReflectionUtils.invokeMethod(getNameMethod, dubboConfigBean);
 
             if (propertyValue != null) { // If The return value of "getName" method is not null
-                // Bean的属性中存在Name属性有值
+                // Bean的Name属性有值
                 return;
             }
 

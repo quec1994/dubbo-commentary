@@ -86,11 +86,15 @@ public abstract class DubboBeanUtils {
         // Since 2.7.4 Register DubboBootstrapApplicationListener as an infrastructure Bean
         // registerInfrastructureBean(registry, DubboBootstrapApplicationListener.BEAN_NAME,
         //        DubboBootstrapApplicationListener.class);
-
+        // 注册Spring应用监听器，用于注册Dubbo生命周期管理的监听器
         registerInfrastructureBean(registry, DubboApplicationListenerRegistrar.BEAN_NAME,
                 DubboApplicationListenerRegistrar.class);
 
         // Since 2.7.6 Register DubboConfigDefaultPropertyValueBeanPostProcessor as an infrastructure Bean
+        // 注册Bean后置处理器，给 ConfigBean 添加默认值，比如 id、name
+        // 如果ConfigBean没有配置id，则把beanName赋值给id
+        // 如果ConfigBean没有配置name，则把beanName赋值给name
+        // 如果ProtocolConfig Bean没有配置name，则把name属性赋值为 dubbo
         registerInfrastructureBean(registry, DubboConfigDefaultPropertyValueBeanPostProcessor.BEAN_NAME,
                 DubboConfigDefaultPropertyValueBeanPostProcessor.class);
 
