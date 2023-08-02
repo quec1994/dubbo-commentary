@@ -71,6 +71,7 @@ public class ConfigManager extends LifecycleAdapter implements FrameworkExt {
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
+    // 结构：{"CONFIG_TYPE":{"ID":CONFIG_BEAN}}
     final Map<String, Map<String, AbstractConfig>> configsCache = newMap();
 
     public ConfigManager() {

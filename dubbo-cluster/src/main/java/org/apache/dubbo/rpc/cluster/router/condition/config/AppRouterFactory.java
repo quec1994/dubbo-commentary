@@ -44,6 +44,7 @@ public class AppRouterFactory implements RouterFactory {
     }
 
     private Router createRouter(URL url) {
+        // 内部会进行初始化
         return new AppRouter(url);
     }
 }

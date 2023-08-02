@@ -55,6 +55,8 @@ public interface PathUtils {
      * @return a normalized path if required
      */
     static String normalize(String path) {
+        // 如果是 //xxx/yyy?kkk=vvv 转换成 /xxx/yyy
+
         if (isEmpty(path)) {
             return SLASH;
         }

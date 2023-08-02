@@ -174,8 +174,14 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
     public PropertyValues postProcessPropertyValues(
             PropertyValues pvs, PropertyDescriptor[] pds, Object bean, String beanName) throws BeanCreationException {
 
+        // 寻找需要注入的属性/方法（被@DubboReference标注的属性/方法）
         InjectionMetadata metadata = findInjectionMetadata(beanName, bean.getClass(), pvs);
         try {
+            // 调的是 AbstractAnnotationBeanPostProcessor.AnnotatedInjectionMetadata 的 inject 方法
+            // 但是 AnnotatedInjectionMetadata 方法没有覆写 inject 方法，因此调的是父类 InjectionMetadata 的 inject 方法
+            // 在 InjectionMetadata 中会遍历 injectedElements 调 inject 方法，为bean的属性/方法注入Dubbo引用对象实例
+            // 也就是调 AbstractAnnotationBeanPostProcessor.AnnotatedFieldElement
+            //     和 AbstractAnnotationBeanPostProcessor.AnnotatedMethodElement 的 inject 方法
             metadata.inject(bean, beanName, pvs);
         } catch (BeanCreationException ex) {
             throw ex;
@@ -202,7 +208,7 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
             public void doWith(Field field) throws IllegalArgumentException, IllegalAccessException {
 
                 for (Class<? extends Annotation> annotationType : getAnnotationTypes()) {
-
+                    // 获取属性上修饰的注解的配置信息
                     AnnotationAttributes attributes = doGetAnnotationAttributes(field, annotationType);
 
                     if (attributes != null) {
@@ -213,7 +219,7 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
                             }
                             return;
                         }
-
+                        // 根据属性和配置信息生成spring的InjectedElement
                         elements.add(new AnnotatedFieldElement(field, attributes));
                     }
                 }
@@ -247,6 +253,7 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
 
                 for (Class<? extends Annotation> annotationType : getAnnotationTypes()) {
 
+                    // 获取方法上修饰的注解的配置信息
                     AnnotationAttributes attributes = doGetAnnotationAttributes(bridgedMethod, annotationType);
 
                     if (attributes != null && method.equals(ClassUtils.getMostSpecificMethod(method, beanClass))) {
@@ -262,7 +269,10 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
                                         method);
                             }
                         }
+                        // 找到set方法所对应的属性
                         PropertyDescriptor pd = BeanUtils.findPropertyForMethod(bridgedMethod, beanClass);
+
+                        // 根据方法、属性和配置信息生成spring的InjectedElement
                         elements.add(new AnnotatedMethodElement(method, pd, attributes));
                     }
                 }
@@ -287,16 +297,22 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
     }
 
     private AbstractAnnotationBeanPostProcessor.AnnotatedInjectionMetadata buildAnnotatedMetadata(final Class<?> beanClass) {
+        // 查找哪些Filed上有@DubboReference注解
         Collection<AbstractAnnotationBeanPostProcessor.AnnotatedFieldElement> fieldElements = findFieldAnnotationMetadata(beanClass);
+        // 查找哪些方法上有@DubboReference注解
         Collection<AbstractAnnotationBeanPostProcessor.AnnotatedMethodElement> methodElements = findAnnotatedMethodMetadata(beanClass);
+        // 返回的是Dubbo定义的AnnotatedInjectionMetadata，接下来就会使用这个类去进行属性注入
         return new AbstractAnnotationBeanPostProcessor.AnnotatedInjectionMetadata(beanClass, fieldElements, methodElements);
     }
 
     private InjectionMetadata findInjectionMetadata(String beanName, Class<?> clazz, PropertyValues pvs) {
+        // 查找含有需要注入Dubbo引用对象的属性/方法（被@DubboReference标注的属性/方法）的元数据包装类
+
         // Fall back to class name as cache key, for backwards compatibility with custom callers.
         String cacheKey = (StringUtils.hasLength(beanName) ? beanName : clazz.getName());
         // Quick check on the concurrent map first, with minimal locking.
         AbstractAnnotationBeanPostProcessor.AnnotatedInjectionMetadata metadata = this.injectionMetadataCache.get(cacheKey);
+        // 先从缓存中找
         if (InjectionMetadata.needsRefresh(metadata, clazz)) {
             synchronized (this.injectionMetadataCache) {
                 metadata = this.injectionMetadataCache.get(cacheKey);
@@ -305,6 +321,7 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
                         metadata.clear(pvs);
                     }
                     try {
+                        // 构造含有需要注入Dubbo引用对象的属性/方法（被@DubboReference标注的属性/方法）的元数据包装类
                         metadata = buildAnnotatedMetadata(clazz);
                         this.injectionMetadataCache.put(cacheKey, metadata);
                     } catch (NoClassDefFoundError err) {
@@ -320,6 +337,7 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
     @Override
     public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) {
         if (beanType != null) {
+            // 查找需要注入的属性/方法（被@DubboReference标注的属性/方法）
             InjectionMetadata metadata = findInjectionMetadata(beanName, beanType, null);
             metadata.checkConfigMembers(beanDefinition);
         }
@@ -400,12 +418,16 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
      */
     protected Object getInjectedObject(AnnotationAttributes attributes, Object bean, String beanName, Class<?> injectedType,
                                        InjectionMetadata.InjectedElement injectedElement) throws Exception {
+        // 生成注入对象，@DubboReference 修饰的属性/方法的注入对象都是走这里生成的
 
+        // 哪个Service引用了哪个类型的服务，通过什么方式引入的
         String cacheKey = buildInjectedObjectCacheKey(attributes, bean, beanName, injectedType, injectedElement);
+        // ServiceBean:org.apache.dubbo.demo.DemoService#source=private org.apache.dubbo.demo.DemoService org.apache.dubbo.demo.consumer.comp.DemoServiceComponent.demoService#attributes={}
 
         Object injectedObject = injectedObjectsCache.get(cacheKey);
 
         if (injectedObject == null) {
+            // 生成注入的Bean
             injectedObject = doGetInjectedBean(attributes, bean, beanName, injectedType, injectedElement);
             // Customized inject-object if necessary
             injectedObjectsCache.putIfAbsent(cacheKey, injectedObject);
@@ -588,13 +610,18 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
 
         @Override
         protected void inject(Object bean, String beanName, PropertyValues pvs) throws Throwable {
+            // 通过bean的方法进行属性赋值
 
+            // 解析需要注入的参数声明类型
             Class<?> injectedType = pd.getPropertyType();
 
+            // 获取注入的对象
+            // 外部类 AbstractAnnotationBeanPostProcessor 类的 getInjectedObject 方法
             Object injectedObject = getInjectedObject(attributes, bean, beanName, injectedType, this);
 
             ReflectionUtils.makeAccessible(method);
 
+            // 调用方法进行赋值
             method.invoke(bean, injectedObject);
 
         }
@@ -620,13 +647,18 @@ public abstract class AbstractAnnotationBeanPostProcessor extends
 
         @Override
         protected void inject(Object bean, String beanName, PropertyValues pvs) throws Throwable {
+            // 给bean对象进行属性赋值
 
+            // 解析field的声明类型
             Class<?> injectedType = resolveInjectedType(bean, field);
 
+            // 获取注入的对象
+            // 外部类 AbstractAnnotationBeanPostProcessor 类的 getInjectedObject 方法
             Object injectedObject = getInjectedObject(attributes, bean, beanName, injectedType, this);
 
             ReflectionUtils.makeAccessible(field);
 
+            // 将注入对象赋值给属性
             field.set(bean, injectedObject);
 
         }

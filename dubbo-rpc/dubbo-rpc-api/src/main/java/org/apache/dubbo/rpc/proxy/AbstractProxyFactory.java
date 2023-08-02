@@ -49,8 +49,10 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
     public <T> T getProxy(Invoker<T> invoker, boolean generic) throws RpcException {
         Set<Class<?>> interfaces = new HashSet<>();
 
+        // 获取 invoker.url.parameter[interfaces]，看git提交记录应该是用来兼容2.0.8之前版本RMI。
         String config = invoker.getUrl().getParameter(INTERFACES);
         if (config != null && config.length() > 0) {
+            // 使用逗号切分
             String[] types = COMMA_SPLIT_PATTERN.split(config);
             for (String type : types) {
                 // TODO can we load successfully for a different classloader?.
@@ -60,21 +62,29 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
 
         if (generic) {
             if (GenericService.class.equals(invoker.getInterface()) || !GenericService.class.isAssignableFrom(invoker.getInterface())) {
+                // 添加泛化调用的统一接口类 Class
                 interfaces.add(com.alibaba.dubbo.rpc.service.GenericService.class);
             }
 
             try {
                 // find the real interface from url
                 String realInterface = invoker.getUrl().getParameter(Constants.INTERFACE);
+                // 添加泛化调用的服务接口类 Class
                 interfaces.add(ReflectUtils.forName(realInterface));
             } catch (Throwable e) {
                 // ignore
             }
         }
 
+        // 添加服务接口类 Class
         interfaces.add(invoker.getInterface());
+        // 添加 EchoService.class, Destroyable.class
         interfaces.addAll(Arrays.asList(INTERNAL_INTERFACES));
 
+        // interfaces = {HashSet@3931}  size = 3
+        // 0 = {Class@3937} "interface org.apache.dubbo.rpc.service.Destroyable"
+        // 1 = {Class@2011} "interface org.apache.dubbo.demo.DemoService"
+        // 2 = {Class@2377} "interface org.apache.dubbo.rpc.service.EchoService"
         return getProxy(invoker, interfaces.toArray(new Class<?>[0]));
     }
 

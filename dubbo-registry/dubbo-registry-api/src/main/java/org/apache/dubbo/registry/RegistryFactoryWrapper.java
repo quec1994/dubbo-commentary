@@ -31,6 +31,8 @@ public class RegistryFactoryWrapper implements RegistryFactory {
 
     @Override
     public Registry getRegistry(URL url) {
+        // 加注册表服务监听器
+        // ListenerRegistryWrapper 里的方法没有处理逻辑，纯透传，只是在方法执行完成后会调用监听器的对应方法
         return new ListenerRegistryWrapper(registryFactory.getRegistry(url),
                 Collections.unmodifiableList(ExtensionLoader.getExtensionLoader(RegistryServiceListener.class)
                         .getActivateExtension(url, "registry.listeners")));

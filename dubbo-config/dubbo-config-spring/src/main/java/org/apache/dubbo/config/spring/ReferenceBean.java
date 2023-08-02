@@ -30,7 +30,6 @@ import org.apache.dubbo.config.SslConfig;
 import org.apache.dubbo.config.annotation.Reference;
 import org.apache.dubbo.config.spring.extension.SpringExtensionFactory;
 import org.apache.dubbo.config.support.Parameter;
-
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.FactoryBean;
 import org.springframework.beans.factory.InitializingBean;
@@ -65,6 +64,7 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
 
     @Override
     public Object getObject() {
+        // FactoryBean 接口的方法，spring执行自动注入的时候会调用这个方法
         return get();
     }
 
@@ -104,15 +104,21 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
     public void afterPropertiesSet() throws Exception {
 
         // Initializes Dubbo's Config Beans before @Reference bean autowiring
+        // 在自动装配@Reference的bean之前触发spring初始化Dubbo的配置Bean
         prepareDubboConfigBeans();
 
         // lazy init by default.
         if (init == null) {
+            // 没有配置的话，设置init默认值为false，进行延迟初始化
             init = false;
         }
 
         // eager init if necessary.
+        // 如果没有主动配置init的话，在前面逻辑的作用下这边会返回false
+        // 默认延迟初始化，后面会在 ReferenceAnnotationBeanPostProcessor.doGetInjectedBean 方法中
+        // 调用 referenceBean.get() 去完成初始化
         if (shouldInit()) {
+            // 初始化Bean，配置def生成invoke代理
             getObject();
         }
     }

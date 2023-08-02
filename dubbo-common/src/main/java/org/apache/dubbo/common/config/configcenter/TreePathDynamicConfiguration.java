@@ -65,6 +65,7 @@ public abstract class TreePathDynamicConfiguration extends AbstractDynamicConfig
 
     public TreePathDynamicConfiguration(URL url) {
         super(url);
+        // 默认 /dubbo/config
         this.rootPath = getRootPath(url);
     }
 
@@ -80,7 +81,9 @@ public abstract class TreePathDynamicConfiguration extends AbstractDynamicConfig
 
     @Override
     protected final String doGetConfig(String key, String group) throws Exception {
+        // /dubbo/config + / + group + / + key
         String pathKey = buildPathKey(group, key);
+        // /dubbo/config/dubbo/dubbo.properties
         return doGetConfig(pathKey);
     }
 
@@ -128,11 +131,15 @@ public abstract class TreePathDynamicConfiguration extends AbstractDynamicConfig
     protected abstract void doRemoveListener(String pathKey, ConfigurationListener listener);
 
     protected String buildGroupPath(String group) {
+        // rootPath + / + group
         return buildPath(rootPath, group);
+        // /dubbo/config/dubbo
     }
 
     protected String buildPathKey(String group, String key) {
+        // rootPath + / + group + / + key
         return buildPath(buildGroupPath(group), key);
+        // /dubbo/config/dubbo/dubbo.properties
     }
 
     /**
@@ -142,13 +149,16 @@ public abstract class TreePathDynamicConfiguration extends AbstractDynamicConfig
      * @return non-null
      */
     protected String getRootPath(URL url) {
-
+        // URL参数 dubbo.config-center.root-path 配置根路径
+        // 否则通过 buildRootPath 构造一个默认的
         String rootPath = url.getParameter(CONFIG_ROOT_PATH_PARAM_NAME, buildRootPath(url));
 
+        // 如果是 //xxx/yyy?kkk=vvv 归一成 /xxx/yyy
         rootPath = normalize(rootPath);
 
         int rootPathLength = rootPath.length();
 
+        // 去掉末尾的 /
         if (rootPathLength > 1 && rootPath.endsWith(PATH_SEPARATOR)) {
             rootPath = rootPath.substring(0, rootPathLength - 1);
         }
@@ -157,6 +167,8 @@ public abstract class TreePathDynamicConfiguration extends AbstractDynamicConfig
     }
 
     private String buildRootPath(URL url) {
+        // 通过URL参数配置：/ + URL.parameter[namespace] + URL.parameter[dubbo.config-center.base-path]
+        // 默认 / + dubbo + /config ，即 /dubbo/config
         return PATH_SEPARATOR + getConfigNamespace(url) + getConfigBasePath(url);
     }
 
@@ -167,6 +179,8 @@ public abstract class TreePathDynamicConfiguration extends AbstractDynamicConfig
      * @return non-null
      */
     protected String getConfigNamespace(URL url) {
+        // URL参数 namespace 配置命名空间
+        // 默认 dubbo
         return url.getParameter(CONFIG_NAMESPACE_KEY, DEFAULT_GROUP);
     }
 
@@ -177,6 +191,8 @@ public abstract class TreePathDynamicConfiguration extends AbstractDynamicConfig
      * @return non-null
      */
     protected String getConfigBasePath(URL url) {
+        // URL参数 dubbo.config-center.base-path 配置基础路径
+        // 没有配置的话默认为 /config
         String configBasePath = url.getParameter(CONFIG_BASE_PATH_PARAM_NAME, DEFAULT_CONFIG_BASE_PATH);
         if (StringUtils.isNotEmpty(configBasePath) && !configBasePath.startsWith(PATH_SEPARATOR)) {
             configBasePath = PATH_SEPARATOR + configBasePath;

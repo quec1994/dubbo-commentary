@@ -41,11 +41,14 @@ public class InterfaceCompatibleRegistryProtocol extends RegistryProtocol {
 
     @Override
     protected URL getRegistryUrl(Invoker<?> originInvoker) {
-        // 将registry://xxx?xx=xx&registry=zookeeper 转为 zookeeper://xxx?xx=xx
+        // 从registry://的url中的registry参数获取真正的注册中心连接协议，比如 zookeeper，
+        // 如果registry参数没有值，则默认为dubbo，dubbo提供了自带的注册中心实现，
+        // setProtocol方法会新建一个URL
 
         URL registryUrl = originInvoker.getUrl();
         if (REGISTRY_PROTOCOL.equals(registryUrl.getProtocol())) {
             String protocol = registryUrl.getParameter(REGISTRY_KEY, DEFAULT_REGISTRY);
+            // 将registry://xxx?xx=xx&registry=zookeeper 转为 zookeeper://xxx?xx=xx
             registryUrl = registryUrl.setProtocol(protocol).removeParameter(REGISTRY_KEY);
         }
         return registryUrl;
@@ -53,6 +56,11 @@ public class InterfaceCompatibleRegistryProtocol extends RegistryProtocol {
 
     @Override
     protected URL getRegistryUrl(URL url) {
+        // 从registry://的url中的registry参数获取真正的注册中心连接协议，比如 zookeeper，
+        // 如果registry参数没有值，则默认为dubbo，dubbo提供了自带的注册中心实现
+        // setProtocol方法会新建一个URL
+
+        // 将registry://xxx?xx=xx&registry=zookeeper 转为 zookeeper://xxx?xx=xx
         return URLBuilder.from(url)
                 .setProtocol(url.getParameter(REGISTRY_KEY, DEFAULT_REGISTRY))
                 .removeParameter(REGISTRY_KEY)
@@ -61,6 +69,9 @@ public class InterfaceCompatibleRegistryProtocol extends RegistryProtocol {
 
     @Override
     public <T> ClusterInvoker<T> getInvoker(Cluster cluster, Registry registry, Class<T> type, URL url) {
+        // RegistryDirectory表示动态服务目录，会和注册中心的数据保持同步
+        // type表示一个服务对应一个RegistryDirectory，url表示注册中心地址
+        // 在消费端，最核心的就是RegistryDirectory
         DynamicDirectory<T> directory = new RegistryDirectory<>(type, url);
         return doCreateInvoker(directory, cluster, registry, type);
     }

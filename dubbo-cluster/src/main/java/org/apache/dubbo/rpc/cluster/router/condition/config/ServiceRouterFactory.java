@@ -31,6 +31,7 @@ public class ServiceRouterFactory extends CacheableRouterFactory {
 
     @Override
     protected Router createRouter(URL url) {
+        // 内部会进行初始化
         return new ServiceRouter(url);
     }
 

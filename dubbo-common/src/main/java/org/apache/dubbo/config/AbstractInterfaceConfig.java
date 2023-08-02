@@ -170,7 +170,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
 
     protected String tag;
 
-    private  Boolean auth;
+    private Boolean auth;
 
 
     /**
@@ -194,8 +194,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
      * Check whether the registry config is exists, and then conversion it to {@link RegistryConfig}
      */
     public void checkRegistry() {
+        // 将registryIds属性转换成对应的RegistryConfig对象，并赋值给registries属性
         convertRegistryIdsToRegistries();
 
+        // 校验注册中心配置的有效性
         for (RegistryConfig registryConfig : registries) {
             if (!registryConfig.isValid()) {
                 throw new IllegalStateException("No registry config found or it's not a valid config! " +
@@ -205,6 +207,8 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     }
 
     public static void appendRuntimeParameters(Map<String, String> map) {
+        // 把dubbo的版本信息和pid放入map中
+
         map.put(DUBBO_VERSION_KEY, Version.getProtocolVersion());
         map.put(RELEASE_KEY, Version.getVersion());
         map.put(TIMESTAMP_KEY, String.valueOf(System.currentTimeMillis()));
@@ -221,6 +225,8 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
      * @param methods        the methods configured
      */
     public void checkInterfaceAndMethods(Class<?> interfaceClass, List<MethodConfig> methods) {
+        // 检查远程服务接口和方法是否符合Dubbo的要求。主要检查@DubboReference中配置的方法是否包含在远程服务接口中
+
         // interface cannot be null
         Assert.notNull(interfaceClass, new IllegalStateException("interface not allow null!"));
 
@@ -231,8 +237,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         // check if methods exist in the remote service interface
         if (CollectionUtils.isNotEmpty(methods)) {
             for (MethodConfig methodBean : methods) {
+                // 设置MethodConfig的所属服务信息
                 methodBean.setService(interfaceClass.getName());
                 methodBean.setServiceId(this.getId());
+                // 刷新MethodConfig的配置信息
                 methodBean.refresh();
                 String methodName = methodBean.getName();
                 if (StringUtils.isEmpty(methodName)) {
@@ -240,7 +248,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                             "<dubbo:service interface=\"" + interfaceClass.getName() + "\" ... >" +
                             "<dubbo:method name=\"\" ... /></<dubbo:reference>");
                 }
-
+                // 检查@DubboReference中配置的方法是否包含在远程服务接口中
                 boolean hasMethod = Arrays.stream(interfaceClass.getMethods()).anyMatch(method -> method.getName().equals(methodName));
                 if (!hasMethod) {
                     throw new IllegalStateException("The interface " + interfaceClass.getName()
@@ -249,7 +257,6 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
             }
         }
     }
-
 
 
     /**
@@ -265,14 +272,14 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         verifyStubAndLocal(stub, "Stub", interfaceClass);
     }
 
-    public void verifyStubAndLocal(String className, String label, Class<?> interfaceClass){
-    	if (ConfigUtils.isNotEmpty(className)) {
+    public void verifyStubAndLocal(String className, String label, Class<?> interfaceClass) {
+        if (ConfigUtils.isNotEmpty(className)) {
             Class<?> localClass = ConfigUtils.isDefault(className) ?
                     // 如果本地存根为true，则存根类为interfaceName + "Stub"
                     ReflectUtils.forName(interfaceClass.getName() + label) : ReflectUtils.forName(className);
-                        // 检查存根类是否是接口的实现类，存根类是否有以接口或接口实现类为参数的构造函数
-                        verify(interfaceClass, localClass);
-            }
+            // 检查存根类是否是接口的实现类，存根类是否有以接口或接口实现类为参数的构造函数
+            verify(interfaceClass, localClass);
+        }
     }
 
     private void verify(Class<?> interfaceClass, Class<?> localClass) {
@@ -294,8 +301,10 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
         computeValidRegistryIds();
         if (StringUtils.isEmpty(registryIds)) {
             if (CollectionUtils.isEmpty(registries)) {
+                // 如果registryIds、registries都没有配置则使用默认的注册中心配置
                 List<RegistryConfig> registryConfigs = ApplicationModel.getConfigManager().getDefaultRegistries();
                 if (registryConfigs.isEmpty()) {
+                    // 如果连默认的没有，那么建一个空的RegistryConfig通过refresh注入属性
                     registryConfigs = new ArrayList<>();
                     RegistryConfig registryConfig = new RegistryConfig();
                     registryConfig.refresh();
@@ -303,17 +312,21 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                 } else {
                     registryConfigs = new ArrayList<>(registryConfigs);
                 }
+                // 给registries赋值
                 setRegistries(registryConfigs);
             }
         } else {
+            // 将registryIds按照逗号,分割
             String[] ids = COMMA_SPLIT_PATTERN.split(registryIds);
             List<RegistryConfig> tmpRegistries = new ArrayList<>();
             Arrays.stream(ids).forEach(id -> {
                 if (tmpRegistries.stream().noneMatch(reg -> reg.getId().equals(id))) {
+                    // 根据id从公共的RegistryConfig对象中获取
                     Optional<RegistryConfig> globalRegistry = ApplicationModel.getConfigManager().getRegistry(id);
                     if (globalRegistry.isPresent()) {
                         tmpRegistries.add(globalRegistry.get());
                     } else {
+                        // 没有获取到的话，建一个空的带id的RegistryConfig通过refresh注入属性
                         RegistryConfig registryConfig = new RegistryConfig();
                         registryConfig.setId(id);
                         registryConfig.refresh();
@@ -327,6 +340,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                         "are :" + registryIds + ", but got " + tmpRegistries.size() + " registries!");
             }
 
+            // 给registries赋值
             setRegistries(tmpRegistries);
         }
 
@@ -337,6 +351,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     }
 
     public void completeCompoundConfigs(AbstractInterfaceConfig interfaceConfig) {
+        // 和Provider类似，拿consumer、module、application中配置的属性去填充ReferenceConfig中相同的属性
         if (interfaceConfig != null) {
             if (application == null) {
                 setApplication(interfaceConfig.getApplication());

@@ -48,16 +48,21 @@ public class MigrationRuleListener implements RegistryProtocolListener, Configur
     private volatile String rawRule;
 
     public MigrationRuleListener() {
+        // 动态配置中心
         Optional<DynamicConfiguration> optional = ApplicationModel.getEnvironment().getDynamicConfiguration();
 
         if (optional.isPresent()) {
             this.configuration = optional.get();
 
             logger.info("Listening for migration rules on dataId-" + MigrationRule.RULE_KEY + " group-" + MigrationRule.DUBBO_SERVICEDISCOVERY_MIGRATION_GROUP);
+            // 注册一个配置监听器
+            // zookeeper 协议的配置中心调的是 TreePathDynamicConfiguration 类的 addListener 方法
             configuration.addListener(MigrationRule.RULE_KEY, MigrationRule.DUBBO_SERVICEDISCOVERY_MIGRATION_GROUP, this);
-
+            // 获取配置中心上的配置信息
+            // 获取的就是zookeeper上 /dubbo/config/MIGRATION/dubbo-demo-annotation-consumer.migration 节点中的内容
             rawRule = configuration.getConfig(MigrationRule.RULE_KEY, MigrationRule.DUBBO_SERVICEDISCOVERY_MIGRATION_GROUP);
             if (StringUtils.isEmpty(rawRule)) {
+                // 没有动态配置，打个标
                 rawRule = INIT;
             }
 
@@ -66,6 +71,7 @@ public class MigrationRuleListener implements RegistryProtocolListener, Configur
                 logger.warn("config center is not configured!");
             }
 
+            // 没有动态配置，打个标
             rawRule = INIT;
         }
 
@@ -74,6 +80,9 @@ public class MigrationRuleListener implements RegistryProtocolListener, Configur
 
     @Override
     public synchronized void process(ConfigChangedEvent event) {
+        // 动态配置变更的时候会调用这个方法
+        // zookeeper协议连接的配置中心是通过 CacheListener.dataChanged 走到这个方法
+
         rawRule = event.getContent();
         if (StringUtils.isEmpty(rawRule)) {
             logger.warn("Received empty migration rule, will ignore.");
@@ -84,6 +93,7 @@ public class MigrationRuleListener implements RegistryProtocolListener, Configur
         logger.info(rawRule);
 
         if (CollectionUtils.isNotEmpty(listeners)) {
+            // 监听到配置变更，重新做迁移
             listeners.forEach(listener -> listener.doMigrate(rawRule));
         }
     }
@@ -97,9 +107,12 @@ public class MigrationRuleListener implements RegistryProtocolListener, Configur
     public synchronized void onRefer(RegistryProtocol registryProtocol, ClusterInvoker<?> invoker, URL url) {
         MigrationInvoker<?> migrationInvoker = (MigrationInvoker<?>) invoker;
 
+        // 创建一个迁移规则执行器
         MigrationRuleHandler<?> migrationListener = new MigrationRuleHandler<>(migrationInvoker);
+        // 加到动态配置变更监听器集合中
+        // 对象实例化的时候会监听zookeeper上 /dubbo/config/MIGRATION/dubbo-demo-annotation-consumer.migration 节点中的内容
         listeners.add(migrationListener);
-
+        // 根据配置的规则执行迁移逻辑
         migrationListener.doMigrate(rawRule);
     }
 

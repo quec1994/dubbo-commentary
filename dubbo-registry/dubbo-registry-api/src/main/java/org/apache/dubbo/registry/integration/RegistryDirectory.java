@@ -92,8 +92,16 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
     @Override
     public void subscribe(URL url) {
         setConsumerUrl(url);
+        // 监听consumer应用动态配置变更
+        // 动态配置目录：/dubbo/config/dubbo/dubbo-demo-annotation-consumer.configurators
         CONSUMER_CONFIGURATION_LISTENER.addNotifyListener(this);
+        // 监听所引入的服务的动态配置变更
+        // 动态配置目录：/dubbo/config/dubbo/org.apache.dubbo.demo.DemoService::.configurators
         referenceConfigurationListener = new ReferenceConfigurationListener(this, url);
+        // ListenerRegistryWrapper 里持有 ZookeeperRegistry
+        // ZookeeperRegistry extends FailbackRegistry extends AbstractRegistry
+        // 因此这边会先调用 ListenerRegistryWrapper.subscribe，在这个方法里会调用 ZookeeperRegistry.subscribe
+        // 但是ZookeeperRegistry没有覆写subscribe方法，因此这边调的是 FailbackRegistry.subscribe
         registry.subscribe(url, this);
     }
 

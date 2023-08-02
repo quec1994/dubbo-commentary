@@ -101,6 +101,7 @@ public class DubboAnnotationUtils {
         // 从注解配置里获取服务的接口类
         Class<?> interfaceClass = getAttribute(attributes, "interfaceClass");
 
+        // 注解的interfaceClass属性的默认配置是void.class
         if (void.class.equals(interfaceClass)) { // default or set void.class for purpose.
 
             interfaceClass = null;
@@ -109,21 +110,24 @@ public class DubboAnnotationUtils {
 
             if (hasText(interfaceClassName)) {
                 if (ClassUtils.isPresent(interfaceClassName, classLoader)) {
+                    // 加载接口类
                     interfaceClass = resolveClassName(interfaceClassName, classLoader);
                 }
             }
 
         }
 
+        // 没有通过注解配置服务对应的接口，或者配置的接口加载不到
         if (interfaceClass == null && defaultInterfaceClass != null) {
-            // 没有通过@DubboService配置实现类的接口，也就是服务的接口
             // Find all interfaces from the annotated class
             // To resolve an issue : https://github.com/apache/dubbo/issues/3251
+            // 服务提供者——拿出实现类上实现的所有接口
+            // 服务消费者——defaultInterfaceClass
             Class<?>[] allInterfaces = getAllInterfacesForClass(defaultInterfaceClass);
 
             if (allInterfaces.length > 0) {
                 // 取类实现的第1个接口
-                // 这里有BUG，如果服务的接口不是实现类implements的第一个接口，那注册到注册中心的接口就是错的，消费者就调不通
+                // 服务提供者——这里有坑，如果服务的接口不是实现类implements的第一个接口，那注册到注册中心的接口就是错的，消费者就调不通
                 interfaceClass = allInterfaces[0];
             }
 
@@ -180,6 +184,17 @@ public class DubboAnnotationUtils {
      * @return
      */
     public static Map<String, String> convertParameters(String[] parameters) {
+        /*
+            将字符串数组转换成Map，样例(以JSON结构表示)
+            String[] ==> Map<String, String>
+            ["a","b"] ==> {"a":"b"}
+            [" a "," b "] ==> {"a":"b"}
+            ["a=b"] ==> {"a":"b"}
+            ["a:b"] ==> {"a":"b"}
+            ["a=b","c","d"] ==> {"a":"b","c":"d"}
+            ["a","a:b"] ==> {"a":"a:b"}
+         */
+
         if (ArrayUtils.isEmpty(parameters)) {
             return null;
         }

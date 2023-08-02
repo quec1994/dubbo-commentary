@@ -193,6 +193,8 @@ public class ConfigUtils {
      * @return value
      */
     public static String getSystemProperty(String key) {
+        // 取值顺序 系统环境变量->jvm环境变量
+
         String value = System.getenv(key);
         if (StringUtils.isEmpty(value)) {
             value = System.getProperty(key);

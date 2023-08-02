@@ -1040,13 +1040,14 @@ public class DubboBootstrap {
             }
             // 动态配置中心，管理台上的配置中心
             DynamicConfiguration dynamicConfiguration = getDynamicConfiguration(configCenter.toUrl());
-            // 如果是zookeeper，获取的就是zookeeper上/dubbo/config/dubbo/dubbo.properties节点中的内容
+            // 获取配置中心上的配置内容
+            // 如果是zookeeper，获取的就是zookeeper上 /dubbo/config/dubbo/dubbo.properties 节点中的内容
             String configContent = dynamicConfiguration.getProperties(configCenter.getConfigFile(), configCenter.getGroup());
 
             String appGroup = getApplication().getName();
             String appConfigContent = null;
             if (isNotEmpty(appGroup)) {
-                // 获取的就是zookeeper上/dubbo/config/dubbo/dubbo-demo-annotation-provider/dubbo.properties节点中的内容
+                // 获取的就是zookeeper上 /dubbo/config/dubbo-demo-annotation-provider/dubbo.properties 节点中的内容
                 appConfigContent = dynamicConfiguration.getProperties
                         (isNotEmpty(configCenter.getAppConfigFile()) ? configCenter.getAppConfigFile() : configCenter.getConfigFile(),
                                 appGroup

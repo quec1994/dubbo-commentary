@@ -30,6 +30,7 @@ public abstract class CacheableRouterFactory implements RouterFactory {
 
     @Override
     public Router getRouter(URL url) {
+        // 创建Router并放入routerMap中，一个服务对应一个 标签路由 或 服务条件路由
         return routerMap.computeIfAbsent(url.getServiceKey(), k -> createRouter(url));
     }
 

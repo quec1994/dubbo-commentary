@@ -353,11 +353,11 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         ServiceConfig.appendRuntimeParameters(map);
 
         /* 对map里的值做继承和覆盖操作，获取优先级最高最全的参数值 */
-        // 使用监控中心参数覆盖参数值
+        // 使用指标参数覆盖参数值，如果没有配置则取默认的指标
         AbstractConfig.appendParameters(map, getMetrics());
-        // 使用应用相关参数覆盖参数值
+        // 使用应用相关参数覆盖参数值，如果没有配置则取默认的应用
         AbstractConfig.appendParameters(map, getApplication());
-        // 使用模块相关参数覆盖参数值
+        // 使用模块相关参数覆盖参数值，如果没有配置则取默认的模块
         AbstractConfig.appendParameters(map, getModule());
         // remove 'default.' prefix for configs from ProviderConfig
         // appendParameters(map, provider, Constants.DEFAULT_KEY);
@@ -587,9 +587,9 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                         // 到此为止做了哪些事情？ ServiceBean.export()-->刷新ServiceBean的参数-->得到注册中心URL和协议URL-->遍历每个协议URL-->组成服务URL-->生成可执行服务Invoker-->导出服务
 
                         // Protocol接口有3个包装类，一个是ProtocolFilterWrapper、ProtocolListenerWrapper、QosProtocolWrapper，
-                        // 所以实际上在调用export方法时，会经过这3个包装类的export方法，
-                        // ProtocolFilterWrapper、ProtocolListenerWrapper 的export方法中都会Registry协议进行了判断，不做处理
-                        // QosProtocolWrapper 的export方法会启动qos服务器
+                        // 所以实际上在调用export方法时，会先经过这3个包装类的export方法，
+                        // ProtocolFilterWrapper、ProtocolListenerWrapper 的export方法中都对Registry协议进行了判断，不做处理
+                        // QosProtocolWrapper 的export方法在Registry协议下会启动qos服务器，其它协议不做处理
 
                         // 使用特定的协议来对服务进行导出，这里的协议为registry，导出成功后得到一个Exporter
                         // 1. 先使用registry协议对应的InterfaceCompatibleRegistryProtocol进行服务注册

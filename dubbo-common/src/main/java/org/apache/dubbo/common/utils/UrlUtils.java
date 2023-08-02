@@ -166,12 +166,14 @@ public class UrlUtils {
         if (StringUtils.isEmpty(address)) {
             throw new IllegalArgumentException("Address is not allowed to be empty.");
         }
+        // 按照 | 或者 ; 切分 address
         String[] addresses = REGISTRY_SPLIT_PATTERN.split(address);
         if (addresses == null || addresses.length == 0) {
             throw new IllegalArgumentException("Addresses is not allowed to be empty."); //here won't be empty
         }
         List<URL> registries = new ArrayList<>();
         for (String addr : addresses) {
+            // 构造URL，地址+参数
             registries.add(parseURL(addr, defaults));
         }
         return registries;
@@ -380,6 +382,7 @@ public class UrlUtils {
     }
 
     public static boolean isMatch(URL consumerUrl, URL providerUrl) {
+        // 校验接口类名
         String consumerInterface = consumerUrl.getServiceInterface();
         String providerInterface = providerUrl.getServiceInterface();
         //FIXME accept providerUrl with '*' as interface name, after carefully thought about all possible scenarios I think it's ok to add this condition.
@@ -388,13 +391,15 @@ public class UrlUtils {
                 || StringUtils.isEquals(consumerInterface, providerInterface))) {
             return false;
         }
-
+        // 校验类别
         if (!isMatchCategory(providerUrl.getParameter(CATEGORY_KEY, DEFAULT_CATEGORY),
                 consumerUrl.getParameter(CATEGORY_KEY, DEFAULT_CATEGORY))) {
             return false;
         }
+        // 校验是否允许使用
         if (!providerUrl.getParameter(ENABLED_KEY, true)
                 && !ANY_VALUE.equals(consumerUrl.getParameter(ENABLED_KEY))) {
+            // providerUrl.parameter[enabled] = false 并且 consumerUrl.parameter[enabled] != *
             return false;
         }
 
@@ -405,8 +410,11 @@ public class UrlUtils {
         String providerGroup = providerUrl.getParameter(GROUP_KEY);
         String providerVersion = providerUrl.getParameter(VERSION_KEY);
         String providerClassifier = providerUrl.getParameter(CLASSIFIER_KEY, ANY_VALUE);
+        // 校验group
         return (ANY_VALUE.equals(consumerGroup) || StringUtils.isEquals(consumerGroup, providerGroup) || StringUtils.isContains(consumerGroup, providerGroup))
+                // 校验version
                 && (ANY_VALUE.equals(consumerVersion) || StringUtils.isEquals(consumerVersion, providerVersion))
+                // 校验classifier
                 && (consumerClassifier == null || ANY_VALUE.equals(consumerClassifier) || StringUtils.isEquals(consumerClassifier, providerClassifier));
     }
 
@@ -490,6 +498,7 @@ public class UrlUtils {
      * @since 2.7.5
      */
     public static boolean isServiceDiscoveryRegistryType(URL url) {
+        // 是否是服务发现类型的注册中心
         return isServiceDiscoveryRegistryType(url == null ? emptyMap() : url.getParameters());
     }
 

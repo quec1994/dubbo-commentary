@@ -303,6 +303,8 @@ public abstract class AbstractRegistry implements Registry {
 
     @Override
     public void subscribe(URL url, NotifyListener listener) {
+        // 把listener添加到subscribed中，subscribed是一个map, 存的是<URL, Set<NotifyListener>>
+
         if (url == null) {
             throw new IllegalArgumentException("subscribe url == null");
         }

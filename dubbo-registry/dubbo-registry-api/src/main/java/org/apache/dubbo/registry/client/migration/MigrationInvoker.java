@@ -155,7 +155,9 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
 
     @Override
     public synchronized void fallbackToInterfaceInvoker() {
+        // 刷新服务接口Invoker
         refreshInterfaceInvoker();
+        // 给invoker的动态服务目录添加监听器
         setListener(invoker, () -> {
             this.destroyServiceDiscoveryInvoker(this.serviceDiscoveryInvoker);
         });
@@ -164,6 +166,7 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
         if (!checkInvokerAvailable(serviceDiscoveryInvoker)) {
+            // 服务发现类型的Invoker无效
             if (logger.isDebugEnabled()) {
                 logger.debug("Using interface addresses to handle invocation, interface " + type.getName() + ", total address size " + (invoker.getDirectory().getAllInvokers() == null ? "is null" : invoker.getDirectory().getAllInvokers().size()));
             }
@@ -171,6 +174,7 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
         }
 
         if (!checkInvokerAvailable(invoker)) {
+            // 普通类型的Invoker无效
             if (logger.isDebugEnabled()) {
                 logger.debug("Using instance addresses to handle invocation, interface " + type.getName() + ", total address size " + (serviceDiscoveryInvoker.getDirectory().getAllInvokers() == null ? " is null " : serviceDiscoveryInvoker.getDirectory().getAllInvokers().size()));
             }
@@ -324,12 +328,16 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
 
     @Override
     public synchronized void refreshInterfaceInvoker() {
+        // 清空invoker动态服务目录上的监听器
         clearListener(invoker);
+
         if (needRefresh(invoker)) {
             // FIXME invoker.destroy();
             if (logger.isDebugEnabled()) {
                 logger.debug("Re-subscribing interface addresses for interface " + type.getName());
             }
+            // 订阅注册中心远程服务URL，生成远程服务Invoker
+            // 调的是 InterfaceCompatibleRegistryProtocol.getInvoker
             invoker = registryProtocol.getInvoker(cluster, registry, type, url);
 
             if (migrationMultiRegistry) {

@@ -52,6 +52,7 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
 
     protected volatile URL consumerUrl;
 
+    // url中的refer参数转换而来
     protected final Map<String, String> queryMap; // Initialization at construction time, assertion not null
     protected final String consumedProtocol;
 

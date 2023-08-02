@@ -97,6 +97,7 @@ public interface DynamicConfiguration extends Configuration, AutoCloseable {
      * @return target configuration mapped to the given key and the given group
      */
     default String getConfig(String key, String group) {
+        // 获取配置中心上的key节点中的内容
         return getConfig(key, group, getDefaultTimeout());
     }
 
@@ -117,6 +118,7 @@ public interface DynamicConfiguration extends Configuration, AutoCloseable {
      * such as a complete dubbo.properties file.
      */
     default String getProperties(String key, String group) throws IllegalStateException {
+        // 获取配置中心上的key节点中的内容
         return getProperties(key, group, getDefaultTimeout());
     }
 
@@ -126,6 +128,7 @@ public interface DynamicConfiguration extends Configuration, AutoCloseable {
      * @revision 2.7.4
      */
     default String getProperties(String key, String group, long timeout) throws IllegalStateException {
+        // 获取配置中心上的key节点中的内容
         return getConfig(key, group, timeout);
     }
 

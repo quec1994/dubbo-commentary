@@ -30,6 +30,7 @@ public class ServiceRouter extends ListenableRouter {
     private static final int SERVICE_ROUTER_DEFAULT_PRIORITY = 140;
 
     public ServiceRouter(URL url) {
+        // 得到服务名
         super(url, DynamicConfiguration.getRuleKey(url));
         this.priority = SERVICE_ROUTER_DEFAULT_PRIORITY;
     }

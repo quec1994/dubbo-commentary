@@ -224,6 +224,11 @@ public abstract class DynamicDirectory<T> extends AbstractDirectory<T> implement
 
     public void buildRouterChain(URL url) {
         this.setRouterChain(RouterChain.buildChain(url));
+        // routers
+        // 0 = {MockInvokersSelector@3930}  // mock路由
+        // 1 = {TagRouter@3931}             // 标签路由
+        // 2 = {ServiceRouter@3932}         // 服务条件路由
+        // 3 = {AppRouter@3933}             // 应用条件路由
     }
 
     public List<Invoker<T>> getInvokers() {

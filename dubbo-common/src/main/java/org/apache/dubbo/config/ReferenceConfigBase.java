@@ -100,13 +100,18 @@ public abstract class ReferenceConfigBase<T> extends AbstractReferenceConfig {
         if (shouldInit == null) {
             // default is true, spring will still init lazily by setting init's default value to false,
             // the def default setting happens in {@link ReferenceBean#afterPropertiesSet}.
+            // init在这个方法中默认值为 true
+            // spring 方式启动的仍然是在ReferenceBean#afterPropertiesSet方法中显示将init的默认值设置为false进行延迟初始化。
             return true;
         }
         return shouldInit;
     }
 
     public void checkDefault() throws IllegalStateException {
+        // 这个方法保证一些必要的属性不为空
+
         if (consumer == null) {
+            // 取公共的Consumer配置，如果没有则创建一个空的
             consumer = ApplicationModel.getConfigManager()
                     .getDefaultConsumer()
                     .orElse(new ConsumerConfig());
@@ -206,17 +211,23 @@ public abstract class ReferenceConfigBase<T> extends AbstractReferenceConfig {
     }
 
     public void resolveFile() {
+        // 从JVM环境变量中拿接口名对应的配置项
         String resolve = System.getProperty(interfaceName);
+
+        // 从文件中拿接口名对应的配置项
         String resolveFile = null;
         if (StringUtils.isEmpty(resolve)) {
+            // 从JVM环境变量中拿dubbo.resolve.file对应的文件路径
             resolveFile = System.getProperty("dubbo.resolve.file");
             if (StringUtils.isEmpty(resolveFile)) {
                 File userResolveFile = new File(new File(System.getProperty("user.home")), "dubbo-resolve.properties");
                 if (userResolveFile.exists()) {
+                    // 拿JVM环境变量user.home路径下的dubbo-resolve.properties文件路径
                     resolveFile = userResolveFile.getAbsolutePath();
                 }
             }
             if (resolveFile != null && resolveFile.length() > 0) {
+                // 解析指定的文件
                 Properties properties = new Properties();
                 try (FileInputStream fis = new FileInputStream(new File(resolveFile))) {
                     properties.load(fis);
@@ -224,10 +235,12 @@ public abstract class ReferenceConfigBase<T> extends AbstractReferenceConfig {
                     throw new IllegalStateException("Failed to load " + resolveFile + ", cause: " + e.getMessage(), e);
                 }
 
+                // 从指定的文件中拿接口名对应的配置项
                 resolve = properties.getProperty(interfaceName);
             }
         }
         if (resolve != null && resolve.length() > 0) {
+            // 给url属性赋值
             url = resolve;
             if (logger.isWarnEnabled()) {
                 if (resolveFile != null) {

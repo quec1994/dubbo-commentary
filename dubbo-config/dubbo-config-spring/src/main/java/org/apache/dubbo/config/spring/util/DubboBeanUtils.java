@@ -25,7 +25,6 @@ import org.apache.dubbo.config.spring.beans.factory.config.DubboConfigEarlyRegis
 import org.apache.dubbo.config.spring.context.DubboApplicationListenerRegistrar;
 import org.apache.dubbo.config.spring.context.DubboBootstrapApplicationListener;
 import org.apache.dubbo.config.spring.context.DubboLifecycleComponentApplicationListener;
-
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactoryUtils;
 import org.springframework.beans.factory.BeanNotOfRequiredTypeException;
@@ -66,8 +65,10 @@ public abstract class DubboBeanUtils {
 
         // Since 2.5.7 Register @Reference Annotation Bean Processor as an infrastructure Bean
         // 注册一个ReferenceAnnotationBeanPostProcessor做为bean，ReferenceAnnotationBeanPostProcessor是一个BeanPostProcessor
-        // ReferenceAnnotationBeanPostProcessor 继承了 AbstractAnnotationBeanPostProcessor，继而实现了 MergedBeanDefinitionPostProcessor 接口
-        // 所以Spring在启动时，在对属性进行注入时会调用 AbstractAnnotationBeanPostProcessor 类中的 postProcessMergedBeanDefinition 方法
+        // ReferenceAnnotationBeanPostProcessor 继承了 AbstractAnnotationBeanPostProcessor，
+        // AbstractAnnotationBeanPostProcessor 继承了 InstantiationAwareBeanPostProcessorAdapter,
+        // InstantiationAwareBeanPostProcessorAdapter 实现了 InstantiationAwareBeanPostProcessor 接口
+        // 所以Spring在启动时，在对属性进行注入时会调用 AbstractAnnotationBeanPostProcessor 类中的 postProcessPropertyValues 方法
         // 在这个过程中会按照@Reference注解的信息去生成一个RefrenceBean对象
         registerInfrastructureBean(registry, ReferenceAnnotationBeanPostProcessor.BEAN_NAME,
                 ReferenceAnnotationBeanPostProcessor.class);
@@ -113,12 +114,15 @@ public abstract class DubboBeanUtils {
      * @return
      */
     public static <T> T getOptionalBean(ListableBeanFactory beanFactory, String beanName, Class<T> beanType) throws BeansException {
+        // 从 spring Bean 工厂获取beanType类型的Bean实例
         if (beanName == null) {
+            // 如果beanName为空则根据beanType取
             return getOptionalBeanByType(beanFactory, beanType);
         }
 
         T bean = null;
         try {
+
             bean = beanFactory.getBean(beanName, beanType);
         } catch (NoSuchBeanDefinitionException e) {
             // ignore NoSuchBeanDefinitionException
@@ -131,17 +135,23 @@ public abstract class DubboBeanUtils {
     }
 
     private static <T> T getOptionalBeanByType(ListableBeanFactory beanFactory, Class<T> beanType) {
+        // 从 spring Bean 工厂获取所有beanType类型的Bean实例名称
         // Issue : https://github.com/alibaba/spring-context-support/issues/20
         String[] beanNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(beanFactory, beanType, true, false);
         if (beanNames == null || beanNames.length == 0) {
+            // 没有找到返回null
             return null;
         } else if (beanNames.length > 1) {
+            // 如果有多个则直接抛异常
             throw new NoUniqueBeanDefinitionException(beanType, Arrays.asList(beanNames));
         }
+        // 根据第一个Bean名称从spring Bean工厂中取出指定的Bean实例
         return (T) beanFactory.getBean(beanNames[0]);
     }
 
     public static <T> T getBean(ListableBeanFactory beanFactory, String beanName, Class<T> beanType) throws BeansException {
+        // 根据Bean名称从spring Bean工厂中取出指定的Bean实例，并且会跟beanType做校验
+        // 没有找到会直接抛异常
         return beanFactory.getBean(beanName, beanType);
     }
 
@@ -160,6 +170,7 @@ public abstract class DubboBeanUtils {
         }
         List<T> beans = new ArrayList<T>(beanNames.length);
         for (String beanName : beanNames) {
+            // 根据Bean名称从spring Bean工厂中取出指定的Bean实例，并且会跟beanType做校验
             T bean = getBean(beanFactory, beanName, beanType);
             if (bean != null) {
                 beans.add(bean);

@@ -64,9 +64,16 @@ public class InvokerInvocationHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        /*
+         * proxy：代理类对象实例，在这个方法中没有用上，在这个方法中使用invoker来执行方法
+         * method：被代理的方法
+         * args：执行代理方法时的传参
+         */
         if (method.getDeclaringClass() == Object.class) {
+            // 如果是 Object 类中的方法，直接使用invoker执行
             return method.invoke(invoker, args);
         }
+        // 特殊方法，特殊处理
         String methodName = method.getName();
         Class<?>[] parameterTypes = method.getParameterTypes();
         if (parameterTypes.length == 0) {
@@ -81,6 +88,7 @@ public class InvokerInvocationHandler implements InvocationHandler {
         } else if (parameterTypes.length == 1 && "equals".equals(methodName)) {
             return invoker.equals(args[0]);
         }
+        // 构建调用远程服务的参数
         RpcInvocation rpcInvocation = new RpcInvocation(method, invoker.getInterface().getName(), protocolServiceKey, args);
         String serviceKey = invoker.getUrl().getServiceKey();
         rpcInvocation.setTargetServiceUniqueName(serviceKey);
@@ -93,6 +101,9 @@ public class InvokerInvocationHandler implements InvocationHandler {
             rpcInvocation.put(Constants.METHOD_MODEL, consumerModel.getMethodModel(method));
         }
 
+        // 使用 invoker 执行方法
+        // 这里的recreate方法很重要，他会调用AppResponse的recreate方法，
+        // 如果AppResponse对象中存在exception信息，则此方法中会throw这个异常
         return invoker.invoke(rpcInvocation).recreate();
     }
 }

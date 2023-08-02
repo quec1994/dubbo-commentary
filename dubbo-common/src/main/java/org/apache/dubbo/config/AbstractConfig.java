@@ -245,6 +245,7 @@ public abstract class AbstractConfig implements Serializable {
 
         //check config conflict
         if (Boolean.FALSE.equals(methodConfig.isReturn()) && (methodConfig.getOnreturn() != null || methodConfig.getOnthrow() != null)) {
+            // 如果异步方法配置为没有返回，那么不能配置方法的onreturn和onthrow
             throw new IllegalStateException("method config error : return attribute must be set true when onreturn or onthrow has been set.");
         }
 
@@ -257,16 +258,19 @@ public abstract class AbstractConfig implements Serializable {
         try {
             String oninvokeMethod = methodConfig.getOninvokeMethod();
             if (StringUtils.isNotEmpty(oninvokeMethod)) {
+                // 赋值指定的方法执行器方法
                 asyncMethodInfo.setOninvokeMethod(getMethodByName(methodConfig.getOninvoke().getClass(), oninvokeMethod));
             }
 
             String onreturnMethod = methodConfig.getOnreturnMethod();
             if (StringUtils.isNotEmpty(onreturnMethod)) {
+                // 赋值指定的方法返回值处理器方法
                 asyncMethodInfo.setOnreturnMethod(getMethodByName(methodConfig.getOnreturn().getClass(), onreturnMethod));
             }
 
             String onthrowMethod = methodConfig.getOnthrowMethod();
             if (StringUtils.isNotEmpty(onthrowMethod)) {
+                // 赋值指定的方法异常处理器方法
                 asyncMethodInfo.setOnthrowMethod(getMethodByName(methodConfig.getOnthrow().getClass(), onthrowMethod));
             }
         } catch (Exception e) {

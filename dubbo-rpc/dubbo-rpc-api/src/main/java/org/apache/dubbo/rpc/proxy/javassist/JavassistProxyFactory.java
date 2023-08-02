@@ -32,6 +32,9 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
+        // 执行getProxy方法会动态生成一个Proxy的子类，同时动态生成的一个代理类
+        // 执行newInstance方法后会得到一个代理类的对象实例
+        // 执行代理方法的时候会调用InvokerInvocationHandler的invoke方法
         return (T) Proxy.getProxy(interfaces).newInstance(new InvokerInvocationHandler(invoker));
     }
 

@@ -23,14 +23,34 @@ import org.apache.dubbo.common.extension.support.WrapperComparator;
 import org.apache.dubbo.common.lang.Prioritized;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
-import org.apache.dubbo.common.utils.*;
+import org.apache.dubbo.common.utils.ArrayUtils;
+import org.apache.dubbo.common.utils.ClassUtils;
+import org.apache.dubbo.common.utils.CollectionUtils;
+import org.apache.dubbo.common.utils.ConcurrentHashSet;
+import org.apache.dubbo.common.utils.ConfigUtils;
+import org.apache.dubbo.common.utils.Holder;
+import org.apache.dubbo.common.utils.ReflectUtils;
+import org.apache.dubbo.common.utils.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
@@ -39,7 +59,9 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.sort;
 import static java.util.ServiceLoader.load;
 import static java.util.stream.StreamSupport.stream;
-import static org.apache.dubbo.common.constants.CommonConstants.*;
+import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATTERN;
+import static org.apache.dubbo.common.constants.CommonConstants.DEFAULT_KEY;
+import static org.apache.dubbo.common.constants.CommonConstants.REMOVE_VALUE_PREFIX;
 
 /**
  * {@link org.apache.dubbo.rpc.model.ApplicationModel}, {@code DubboBootstrap} and this class are
@@ -233,6 +255,8 @@ public class ExtensionLoader<T> {
      * @see #getActivateExtension(org.apache.dubbo.common.URL, String[], String)
      */
     public List<T> getActivateExtension(URL url, String[] values) {
+        // 根据url的参数和values筛选出可以激活的扩展点实现类对象实例
+        // values 想要获取的扩展点实现类的名字
         return getActivateExtension(url, values, null);
     }
 
@@ -294,10 +318,11 @@ public class ExtensionLoader<T> {
                 // group表示想要获取的扩展点实现类所在的分组，activateGroup表示当前遍历的扩展点实现类所配置的分组，看是否匹配
                 if (isMatchGroup(group, activateGroup)
                         // names表示想要获取的扩展点实现类的名字数组，name表示当前遍历的扩展点实现类的名字
+                        // 如果当前遍历的扩展点实现类的名字不在想要获取的扩展点实现类的names内，
                         && !names.contains(name)
+                        // 并且names中也没有要排除它，
                         && !names.contains(REMOVE_VALUE_PREFIX + name)
-                        // 如果当前遍历的扩展点实现类的名字不在想要获取的扩展点实现类的names内，并且names中也没有要排除它，则根据url参数看能否激活
-                        // 查看url的参数中是否存在跟activateValue匹配的key和value，并且对应的value不为空
+                        // 则根据url参数看能否激活
                         && isActive(activateValue, url)
                         && !loadedNames.contains(name)) {
                     activateExtensionsMap.put(getExtensionClass(name), getExtension(name));
@@ -358,8 +383,10 @@ public class ExtensionLoader<T> {
 
     private boolean isActive(String[] keys, URL url) {
         if (keys.length == 0) {
+            // 如果Activate注解没有配置value则不做校验，直接返回符合
             return true;
         }
+        // 否则查看url的参数中是否存在跟activateValue匹配的key和value，并且对应的value不为空
         for (String key : keys) {
             // @Active(value="key1:value1, key2:value2")
             String keyValue = null;

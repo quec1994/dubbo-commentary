@@ -199,10 +199,12 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             return;
         }
         super.register(url);
+        // 移除定期重试记录
         removeFailedRegistered(url);
         removeFailedUnregistered(url);
         try {
             // Sending a registration request to the server side
+            // 向服务器端发送注册请求
             doRegister(url);
         } catch (Exception e) {
             Throwable t = e;
@@ -216,12 +218,14 @@ public abstract class FailbackRegistry extends AbstractRegistry {
                 if (skipFailback) {
                     t = t.getCause();
                 }
+                // 如果启动检测已打开，订阅失败会直接抛出异常。
                 throw new IllegalStateException("Failed to register " + url + " to registry " + getUrl().getAddress() + ", cause: " + t.getMessage(), t);
             } else {
                 logger.error("Failed to register " + url + ", waiting for retry, cause: " + t.getMessage(), t);
             }
 
             // Record a failed registration request to a failed list, retry regularly
+            // 将失败的注册请求记录到失败列表中，定期重试
             addFailedRegistered(url);
         }
     }
@@ -292,10 +296,15 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
     @Override
     public void subscribe(URL url, NotifyListener listener) {
+        // url表示要订阅的url，比如 consumer://
+        // consumer://192.168.56.1/org.apache.dubbo.demo.DemoService?application=dubbo-demo-annotation-consumer&category=providers,configurators,routers&dubbo=2.0.2&init=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=10328&side=consumer&sticky=false&timestamp=1690881163433
+
         super.subscribe(url, listener);
+        // 移除订阅失败的定时重试任务
         removeFailedSubscribed(url, listener);
         try {
             // Sending a subscription request to the server side
+            // 调用 ZookeeperRegistry.doSubscribe
             doSubscribe(url, listener);
         } catch (Exception e) {
             Throwable t = e;
@@ -313,6 +322,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
                     if (skipFailback) {
                         t = t.getCause();
                     }
+                    // 如果启动检测已打开，订阅失败会直接抛出异常。
                     throw new IllegalStateException("Failed to subscribe " + url + ", cause: " + t.getMessage(), t);
                 } else {
                     logger.error("Failed to subscribe " + url + ", waiting for retry, cause: " + t.getMessage(), t);
@@ -320,6 +330,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             }
 
             // Record a failed registration request to a failed list, retry regularly
+            // 添加listener，向zk添加监听器时如果报错了，那么会把这个listener添加到failedSubscribed中，并会定时重试（重新注册listener）
             addFailedSubscribed(url, listener);
         }
     }
@@ -354,6 +365,12 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
     @Override
     protected void notify(URL url, NotifyListener listener, List<URL> urls) {
+        /*
+            接收到通知，处理通知的方法
+            url – consumerUrl
+            listener – 监听器
+            urls – 从zk上取下来的节点转换而成的多个URL，比如 empty://、override://、dubbo://
+         */
         if (url == null) {
             throw new IllegalArgumentException("notify url == null");
         }
@@ -363,6 +380,8 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         try {
             doNotify(url, listener, urls);
         } catch (Exception t) {
+            // 处理通知失败
+
             // Record a failed registration request to a failed list
             logger.error("Failed to notify addresses for subscribe " + url + ", cause: " + t.getMessage(), t);
         }

@@ -173,6 +173,7 @@ public class MethodConfig extends AbstractMethodConfig {
         if (methods != null && methods.length != 0) {
             List<MethodConfig> methodConfigs = new ArrayList<MethodConfig>(methods.length);
             for (int i = 0; i < methods.length; i++) {
+                // 将Method注解配置转换成MethodConfig对象
                 MethodConfig methodConfig = new MethodConfig(methods[i]);
                 methodConfigs.add(methodConfig);
             }

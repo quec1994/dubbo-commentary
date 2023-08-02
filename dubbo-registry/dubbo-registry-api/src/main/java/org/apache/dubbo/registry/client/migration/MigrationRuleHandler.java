@@ -33,6 +33,9 @@ public class MigrationRuleHandler<T> {
     private MigrationStep currentStep;
 
     public void doMigrate(String rawRule) {
+        // 根据配置的规则执行迁移逻辑
+
+        // 将迁移规则内容字符串转换成对象
         MigrationRule rule = MigrationRule.parse(rawRule);
 
         if (null != currentStep && currentStep.equals(rule.getStep())) {
@@ -46,6 +49,7 @@ public class MigrationRuleHandler<T> {
 
         migrationInvoker.setMigrationRule(rule);
 
+        // migrationInvoker.isMigrationMultiRegistry() 默认为false
         if (migrationInvoker.isMigrationMultiRegistry()) {
             if (migrationInvoker.isServiceInvoker()) {
                 migrationInvoker.refreshServiceDiscoveryInvoker();
@@ -53,6 +57,7 @@ public class MigrationRuleHandler<T> {
                 migrationInvoker.refreshInterfaceInvoker();
             }
         } else {
+            // rule.getStep() 默认为 MigrationStep.FORCE_INTERFACE
             switch (rule.getStep()) {
                 case APPLICATION_FIRST:
                     migrationInvoker.migrateToServiceDiscoveryInvoker(false);
@@ -62,6 +67,8 @@ public class MigrationRuleHandler<T> {
                     break;
                 case FORCE_INTERFACE:
                 default:
+                    // 默认执行这边，接口维度进行订阅
+                    // MigrationInvoker.fallbackToInterfaceInvoker
                     migrationInvoker.fallbackToInterfaceInvoker();
             }
         }

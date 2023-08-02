@@ -221,7 +221,6 @@ public class ConfigValidationUtils {
 
                         url = URLBuilder.from(url)
                                 .addParameter(REGISTRY_KEY, url.getProtocol())
-                                // 是否是服务发现类型的注册中心
                                 .setProtocol(extractRegistryType(url))
                                 .build();
                         // 到此为止，url的内容大致为：
@@ -240,7 +239,7 @@ public class ConfigValidationUtils {
                 }
             }
         }
-        // 服务发现类型的注册中心注册两份URL
+        // 对服务提供者，服务发现类型的注册中心URL再加一份普通的注册中心URL
         return genCompatibleRegistries(registryList, provider);
     }
 
@@ -249,7 +248,10 @@ public class ConfigValidationUtils {
         registryList.forEach(registryURL -> {
             result.add(registryURL);
             if (provider) {
+                // 服务提供者
+
                 // for registries enabled service discovery, automatically register interface compatible addresses.
+                // 对于启用了服务发现的注册中心，自动注册接口兼容地址。
                 if (SERVICE_REGISTRY_PROTOCOL.equals(registryURL.getProtocol())
                         && registryURL.getParameter(REGISTRY_PUBLISH_INTERFACE_KEY, ConfigurationUtils.getDynamicGlobalConfiguration().getBoolean(DUBBO_PUBLISH_INTERFACE_DEFAULT_KEY, false))
                         && registryNotExists(registryURL, registryList, REGISTRY_PROTOCOL)) {
@@ -271,10 +273,14 @@ public class ConfigValidationUtils {
     }
 
     public static URL loadMonitor(AbstractInterfaceConfig interfaceConfig, URL registryURL) {
+        // map是将要生成的监控中心URL的参数
         Map<String, String> map = new HashMap<String, String>();
+        // 在map中放入运行时信息
         map.put(INTERFACE_KEY, MonitorService.class.getName());
+        // 在map中放入运行时信息
         AbstractInterfaceConfig.appendRuntimeParameters(map);
         //set ip
+        // 获取本地Ip并赋值给register.ip
         String hostToRegistry = ConfigUtils.getSystemProperty(DUBBO_IP_TO_REGISTRY);
         if (StringUtils.isEmpty(hostToRegistry)) {
             hostToRegistry = NetUtils.getLocalHost();
@@ -286,8 +292,11 @@ public class ConfigValidationUtils {
 
         MonitorConfig monitor = interfaceConfig.getMonitor();
         ApplicationConfig application = interfaceConfig.getApplication();
+        // 将monitor的配置信息放入或更新map
         AbstractConfig.appendParameters(map, monitor);
+        // 将application的配置信息放入或更新map
         AbstractConfig.appendParameters(map, application);
+
         // address就是监控中心的地址
         String address = null;
         String sysaddress = System.getProperty(DUBBO_MONITOR_ADDRESS);
@@ -297,17 +306,24 @@ public class ConfigValidationUtils {
             address = monitor.getAddress();
         }
         if (ConfigUtils.isNotEmpty(address)) {
+            // 配置了监控中心的地址
             if (!map.containsKey(PROTOCOL_KEY)) {
                 if (getExtensionLoader(MonitorFactory.class).hasExtension(LOGSTAT_PROTOCOL)) {
+                    // 有名字为 logstat 的 MonitorFactory 扩展点实现类
                     map.put(PROTOCOL_KEY, LOGSTAT_PROTOCOL);
                 } else {
+                    // 默认使用 dubbo 的 MonitorFactory 扩展点实现类
                     map.put(PROTOCOL_KEY, DUBBO_PROTOCOL);
                 }
             }
+            // 根据配置的监控中心地址生成URL
             return UrlUtils.parseURL(address, map);
         } else if (monitor != null &&
+                // 配置了监控中心，
+                // 并且注册中心的协议配置成了registry或者是service-discovery-registry
                 (REGISTRY_PROTOCOL.equals(monitor.getProtocol()) || SERVICE_REGISTRY_PROTOCOL.equals(monitor.getProtocol()))
                 && registryURL != null) {
+            // 根据注册中心URL构造监控中心URL
             return URLBuilder.from(registryURL)
                     .setProtocol(DUBBO_PROTOCOL)
                     .addParameter(PROTOCOL_KEY, monitor.getProtocol())
@@ -343,7 +359,7 @@ public class ConfigValidationUtils {
                 throw new IllegalStateException("Illegal mock return in <dubbo:service/reference ... " +
                         "mock=\"" + mock + "\" />");
             }
-        // 抛异常的mock
+            // 抛异常的mock
         } else if (normalizedMock.startsWith(THROW_PREFIX)) {
             normalizedMock = normalizedMock.substring(THROW_PREFIX.length()).trim();
             if (ConfigUtils.isNotEmpty(normalizedMock)) {
@@ -568,10 +584,15 @@ public class ConfigValidationUtils {
     }
 
     private static String extractRegistryType(URL url) {
+        // 提取注册中心的协议
+        // service-discovery-registry —— 服务发现类型的注册中心
+        // registry —— 普通类型的注册中心
         return isServiceDiscoveryRegistryType(url) ? SERVICE_REGISTRY_PROTOCOL : REGISTRY_PROTOCOL;
     }
 
     public static void checkExtension(Class<?> type, String property, String value) {
+        // 校验value指定的扩展点名称是否包含非法字符，对应的扩展点是否存在
+
         checkName(property, value);
         if (StringUtils.isNotEmpty(value)
                 && !ExtensionLoader.getExtensionLoader(type).hasExtension(value)) {
@@ -588,16 +609,22 @@ public class ConfigValidationUtils {
      * @param value    The Extension name
      */
     public static void checkMultiExtension(Class<?> type, String property, String value) {
+        // 校验value里包含的扩展点名称是否包含非法字符，对应的扩展点是否都存在
+
         checkMultiName(property, value);
         if (StringUtils.isNotEmpty(value)) {
+            // 根据逗号,切割
             String[] values = value.split("\\s*[,]+\\s*");
             for (String v : values) {
+                // 去掉特殊扩展点配置标志（排除扩展点配置的前缀）
                 if (v.startsWith(REMOVE_VALUE_PREFIX)) {
                     v = v.substring(1);
                 }
+                // 配置的是否为默认扩展点
                 if (DEFAULT_KEY.equals(v)) {
                     continue;
                 }
+                // 校验扩展点是否存在
                 if (!ExtensionLoader.getExtensionLoader(type).hasExtension(v)) {
                     throw new IllegalStateException("No such extension " + v + " for " + property + "/" + type.getName());
                 }
@@ -614,6 +641,8 @@ public class ConfigValidationUtils {
     }
 
     public static void checkName(String property, String value) {
+        // 校验里value是否包含非法字符
+        // 合法字符：- . _ 0-9 a-z A-Z
         checkProperty(property, value, MAX_LENGTH, PATTERN_NAME);
     }
 
@@ -634,14 +663,21 @@ public class ConfigValidationUtils {
     }
 
     public static void checkNameHasSymbol(String property, String value) {
+        // 校验里value是否包含非法字符
+        // 合法字符：: * , / - . _ 0-9 a-z A-Z \s（空字符）
         checkProperty(property, value, MAX_LENGTH, PATTERN_NAME_HAS_SYMBOL);
     }
 
     public static void checkKey(String property, String value) {
+        // 校验里value是否包含非法字符
+        // 合法字符：* , - . _ 0-9 a-z A-Z
         checkProperty(property, value, MAX_LENGTH, PATTERN_KEY);
     }
 
     public static void checkMultiName(String property, String value) {
+        // 校验里value是否包含非法字符
+        // 合法字符：, - . _ 0-9 a-z A-Z
+
         checkProperty(property, value, MAX_LENGTH, PATTERN_MULTI_NAME);
     }
 
@@ -675,11 +711,13 @@ public class ConfigValidationUtils {
             return;
         }
         if (value.length() > maxlength) {
+            // 超过最大长度
             throw new IllegalStateException("Invalid " + property + "=\"" + value + "\" is longer than " + maxlength);
         }
         if (pattern != null) {
             Matcher matcher = pattern.matcher(value);
             if (!matcher.matches()) {
+                // 包含非法字符
                 throw new IllegalStateException("Invalid " + property + "=\"" + value + "\" contains illegal " +
                         "character, only digit, letter, '-', '_' or '.' is legal.");
             }

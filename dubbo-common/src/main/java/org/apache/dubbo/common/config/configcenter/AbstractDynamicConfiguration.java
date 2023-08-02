@@ -111,6 +111,7 @@ public abstract class AbstractDynamicConfiguration implements DynamicConfigurati
 
     @Override
     public final String getConfig(String key, String group, long timeout) throws IllegalStateException {
+        // 获取配置中心上的配置内容
         return execute(() -> doGetConfig(key, group), timeout);
     }
 

@@ -77,8 +77,10 @@ public abstract class AnnotatedInterfaceConfigBeanBuilder<C extends AbstractInte
 
         checkDependencies();
 
+        // 创建一个ReferenceBean对象
         C configBean = doBuild();
 
+        // 给ReferenceBean对象的属性赋值
         configureBean(configBean);
 
         if (logger.isInfoEnabled()) {
@@ -103,16 +105,25 @@ public abstract class AnnotatedInterfaceConfigBeanBuilder<C extends AbstractInte
 
     protected void configureBean(C configBean) throws Exception {
 
+        // 给configBean的基本类型属性赋值
+        // 把@DubboReference注解中的配置项赋值给configBean
         preConfigureBean(attributes, configBean);
 
+        // 给configBean的特殊类型属性(对象类型)赋值
+
+        // 给configBean的registries属性赋值
         configureRegistryConfigs(configBean);
 
+        // 给configBean的monitor属性赋值，如果没有配置就使用公共的MonitorConfig Bean
         configureMonitorConfig(configBean);
 
+        // 给configBean的application属性赋值，如果没有配置就使用公共的ApplicationConfig Bean
         configureApplicationConfig(configBean);
 
+        // 给configBean的Module属性赋值，如果没有配置就使用公共的ModuleConfig Bean
         configureModuleConfig(configBean);
 
+        // 设置applicationContext、interfaceName、consumer、methods属性，并调用ReferenceBean对象的afterPropertiesSet方法
         postConfigureBean(attributes, configBean);
 
     }
@@ -122,42 +133,54 @@ public abstract class AnnotatedInterfaceConfigBeanBuilder<C extends AbstractInte
 
     private void configureRegistryConfigs(C configBean) {
 
+        // 解析@DubboRefrence注解中配置的registry属性
         String[] registryConfigBeanIds = resolveRegistryConfigBeanNames(attributes);
 
+        // 获得注册中心对应的RegistryConfig对象
         List<RegistryConfig> registryConfigs = getBeans(applicationContext, registryConfigBeanIds, RegistryConfig.class);
 
+        // 赋值
         configBean.setRegistries(registryConfigs);
 
     }
 
     private void configureMonitorConfig(C configBean) {
 
+        // 解析@DubboRefrence注解中配置的monitor属性
         String monitorBeanName = resolveMonitorConfigBeanName(attributes);
 
+        // 从Spring容器获取MonitorConfig的bean对象，如果没有配置那么就按照MonitorConfig类型取
         MonitorConfig monitorConfig = getOptionalBean(applicationContext, monitorBeanName, MonitorConfig.class);
 
+        // 赋值
         configBean.setMonitor(monitorConfig);
 
     }
 
     private void configureApplicationConfig(C configBean) {
 
+        // 解析@DubboRefrence注解中配置的application属性
         String applicationConfigBeanName = resolveApplicationConfigBeanName(attributes);
 
+        // 从Spring容器获取ApplicationConfig的bean对象，如果没有配置那么就按照ApplicationConfig类型取
         ApplicationConfig applicationConfig =
                 getOptionalBean(applicationContext, applicationConfigBeanName, ApplicationConfig.class);
 
+        // 赋值
         configBean.setApplication(applicationConfig);
 
     }
 
     private void configureModuleConfig(C configBean) {
 
+        // 解析@DubboRefrence注解中配置的module属性
         String moduleConfigBeanName = resolveModuleConfigBeanName(attributes);
 
+        // 从Spring容器获取ModuleConfig的bean对象，如果没有配置那么就按照ModuleConfig类型取
         ModuleConfig moduleConfig =
                 getOptionalBean(applicationContext, moduleConfigBeanName, ModuleConfig.class);
 
+        // 赋值
         configBean.setModule(moduleConfig);
 
     }

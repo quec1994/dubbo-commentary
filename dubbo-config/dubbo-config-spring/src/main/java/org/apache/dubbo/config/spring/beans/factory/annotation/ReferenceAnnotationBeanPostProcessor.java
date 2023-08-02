@@ -16,6 +16,8 @@
  */
 package org.apache.dubbo.config.spring.beans.factory.annotation;
 
+import com.alibaba.spring.beans.factory.annotation.AbstractAnnotationBeanPostProcessor;
+import com.alibaba.spring.util.AnnotationUtils;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.config.annotation.DubboReference;
@@ -24,10 +26,8 @@ import org.apache.dubbo.config.annotation.Reference;
 import org.apache.dubbo.config.annotation.Service;
 import org.apache.dubbo.config.spring.ReferenceBean;
 import org.apache.dubbo.config.spring.ServiceBean;
-
-import com.alibaba.spring.beans.factory.annotation.AbstractAnnotationBeanPostProcessor;
-import com.alibaba.spring.util.AnnotationUtils;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.InjectionMetadata;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.config.RuntimeBeanReference;
@@ -140,28 +140,43 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
     @Override
     protected Object doGetInjectedBean(AnnotationAttributes attributes, Object bean, String beanName, Class<?> injectedType,
                                        InjectionMetadata.InjectedElement injectedElement) throws Exception {
+        // 这个方法返回的引用对象最终会赋值给@DubboReference注解修饰的Bean属性/方法
+
         /**
          * The name of bean that annotated Dubbo's {@link Service @Service} in local Spring {@link ApplicationContext}
          */
+        // 按ServiceBean的beanName生成规则来生成referencedBeanName
+        // referencedBeanName 被引用的Bean对象实例名称
         String referencedBeanName = buildReferencedBeanName(attributes, injectedType);
+        // ServiceBean:org.apache.dubbo.demo.DemoService
 
         /**
          * The name of bean that is declared by {@link Reference @Reference} annotation injection
          */
+        // 根据@DubboReference注解的信息生成referenceBeanName
+        // referenceBeanName 引用Bean对象实例名称
         String referenceBeanName = getReferenceBeanName(attributes, injectedType);
+        // @Reference org.apache.dubbo.demo.DemoService
 
+        // 保存referencedBeanName和referenceBeanName的映射关系
         referencedBeanNameIdx.computeIfAbsent(referencedBeanName, k -> new TreeSet<String>()).add(referenceBeanName);
 
+        // 生成一个ReferenceBean对象
         ReferenceBean referenceBean = buildReferenceBeanIfAbsent(referenceBeanName, attributes, injectedType);
 
+        // 判断被引用的Bean对象实例（ServiceBean）是不是要使用本JVM中的Bean对象实例
         boolean localServiceBean = isLocalServiceBean(referencedBeanName, referenceBean, attributes);
 
+        // 预处理
         prepareReferenceBean(referencedBeanName, referenceBean, localServiceBean);
 
+        // 在spring上下文中注册referenceBeanName对应的对象
         registerReferenceBean(referencedBeanName, referenceBean, localServiceBean, referenceBeanName);
 
+        // 缓存
         cacheInjectedReferenceBean(referenceBean, injectedElement);
 
+        // 执行referenceBean.get()创建一个代理对象，DemoServiceComponent.demoService属性被注入的就是这个代理对象
         return getBeanFactory().applyBeanPostProcessorsAfterInitialization(referenceBean.get(), referenceBeanName);
     }
 
@@ -181,18 +196,30 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
         ConfigurableListableBeanFactory beanFactory = getBeanFactory();
 
         if (localServiceBean) {  // If @Service bean is local one
+            // 被引用的Bean对象实例（ServiceBean）使用本JVM中的Bean对象实例
+
             /**
              * Get  the @Service's BeanDefinition from {@link BeanFactory}
              * Refer to {@link ServiceClassPostProcessor#buildServiceBeanDefinition}
              */
+            // ServiceBean 的 beanDefinition
             AbstractBeanDefinition beanDefinition = (AbstractBeanDefinition) beanFactory.getBeanDefinition(referencedBeanName);
+            // 获取ServiceBean对应的服务接口实现，也就是 DemoServiceComponent 类的对象实例
             RuntimeBeanReference runtimeBeanReference = (RuntimeBeanReference) beanDefinition.getPropertyValues().get("ref");
+
             // The name of bean annotated @Service
+            // DemoServiceComponent对应的beanName
             String serviceBeanName = runtimeBeanReference.getBeanName();
+            // demoServiceComponent
+
             // register Alias rather than a new bean name, in order to reduce duplicated beans
+            // DemoServiceComponent Bean对象实例多了一个别名，比如 demoServiceComponent 和 @Reference org.apache.dubbo.demo.DemoService
             beanFactory.registerAlias(serviceBeanName, beanName);
         } else { // Remote @Service Bean
+            // 被引用的Bean对象实例（ServiceBean）在远端
+
             if (!beanFactory.containsBean(beanName)) {
+                // 在spring上下文中注册referenceBean
                 beanFactory.registerSingleton(beanName, referenceBean);
             }
         }
@@ -209,9 +236,12 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
      */
     private String getReferenceBeanName(AnnotationAttributes attributes, Class<?> interfaceClass) {
         // id attribute appears since 2.7.3
+        // 如果配置了id则取id
         String beanName = getAttribute(attributes, "id");
         if (!hasText(beanName)) {
+            // 没有配置id则自动构造一个
             beanName = generateReferenceBeanName(attributes, interfaceClass);
+            // @Reference org.apache.dubbo.demo.DemoService
         }
         return beanName;
     }
@@ -225,6 +255,10 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
      * @since 2.7.3
      */
     private String generateReferenceBeanName(AnnotationAttributes attributes, Class<?> interfaceClass) {
+        // 构造ReferenceBean的名字
+        // 格式：@Reference 的配置信息+服务接口类全限定名
+        // @Reference(parameters=[key1=value1, key2=value2],version=version) org.apache.dubbo.demo.DemoService
+
         StringBuilder beanNameBuilder = new StringBuilder("@Reference");
 
         if (!attributes.isEmpty()) {
@@ -291,6 +325,8 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
      * @since 2.7.6
      */
     private boolean isLocalServiceBean(String referencedBeanName, ReferenceBean referenceBean, AnnotationAttributes attributes) {
+        // 当前Spring容器中是否存在referencedBeanName
+        // 在@DubboReference 注解中的injvm属性是否配置为false
         return existsServiceBean(referencedBeanName) && !isRemoteReferenceBean(referenceBean, attributes);
     }
 
@@ -324,6 +360,9 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
     private void prepareReferenceBean(String referencedBeanName, ReferenceBean referenceBean, boolean localServiceBean) {
         //  Issue : https://github.com/apache/dubbo/issues/6224
         if (localServiceBean) { // If the local @Service Bean exists
+            // 被引用的Bean对象实例（ServiceBean）使用本项目中的Bean对象实例
+
+            // referenceBean的injvm属性赋值为true
             referenceBean.setInjvm(Boolean.TRUE);
             exportServiceBeanIfNecessary(referencedBeanName); // If the referenced ServiceBean exits, export it immediately
         }
@@ -331,9 +370,11 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
 
 
     private void exportServiceBeanIfNecessary(String referencedBeanName) {
+        // 再次判断ServiceBean是否存在
         if (existsServiceBean(referencedBeanName)) {
             ServiceBean serviceBean = getServiceBean(referencedBeanName);
             if (!serviceBean.isExported()) {
+                // 触发ServiceBean的导出逻辑
                 serviceBean.export();
             }
         }
@@ -346,8 +387,11 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
     @Override
     protected String buildInjectedObjectCacheKey(AnnotationAttributes attributes, Object bean, String beanName,
                                                  Class<?> injectedType, InjectionMetadata.InjectedElement injectedElement) {
+        // 引用的bean名称
         return buildReferencedBeanName(attributes, injectedType) +
+                // 引用方式
                 "#source=" + (injectedElement.getMember()) +
+                // 注解配置信息
                 "#attributes=" + getAttributes(attributes, getEnvironment());
     }
 
@@ -368,10 +412,16 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
         ReferenceBean<?> referenceBean = referenceBeanCache.get(referenceBeanName);
 
         if (referenceBean == null) {
+
+            // 创建ReferenceBean对象建造器
             ReferenceBeanBuilder beanBuilder = ReferenceBeanBuilder
+                    // attributes是@DubboReference注解的配置信息
                     .create(attributes, applicationContext)
+                    // 远端服务接口类
                     .interfaceClass(referencedType)
+                    // 引用对象的bean名称
                     .beanName(referenceBeanName);
+            // 生成了一个ReferenceBean对象
             referenceBean = beanBuilder.build();
             referenceBeanCache.put(referenceBeanName, referenceBean);
         } else if (!referencedType.isAssignableFrom(referenceBean.getInterfaceClass())) {
