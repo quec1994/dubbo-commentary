@@ -190,12 +190,12 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         serviceMetadata.setTarget(getRef());
         serviceMetadata.generateServiceKey();
 
-        // 检查服务是否需要导出
+        // 检查服务是否需要暴露
         if (!shouldExport()) {
             return;
         }
 
-        // 检查是否需要延迟导出
+        // 检查是否需要延迟暴露
         if (shouldDelay()) {
             DELAY_EXPORT_EXECUTOR.schedule(() -> {
                 try {
@@ -206,10 +206,10 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 }
             }, getDelay(), TimeUnit.MILLISECONDS);
         } else {
-            // 导出服务
+            // 暴露服务
             doExport();
         }
-        // ServiceBean 覆盖实现了 exported() 方法，因此此处调的是 ServiceBean.exported() 方法执行导出完成之后的操作，
+        // ServiceBean 覆盖实现了 exported() 方法，因此此处调的是 ServiceBean.exported() 方法执行暴露完成之后的操作，
         exported();
     }
 
@@ -290,7 +290,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         if (unexported) {
             throw new IllegalStateException("The service " + interfaceClass.getName() + " has already unexported!");
         }
-        // 已经导出了，就不再导出了
+        // 已经暴露了，就不再暴露了
         if (exported) {
             return;
         }
@@ -521,17 +521,17 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
         // scope 的值只能为 null、remote、local、none，没有配置的时候为null，配置其他的值等同于null
         String scope = url.getParameter(SCOPE_KEY);
         // don't export when none is configured
-        // 如果scope为none,则不会进行任何的服务导出，既不会远程，也不会本地
+        // 如果scope为none,则不会进行任何的服务暴露，既不会远程，也不会本地
         if (!SCOPE_NONE.equalsIgnoreCase(scope)) {
 
             // export to local if the config is not remote (export to remote only when config is remote)
             if (!SCOPE_REMOTE.equalsIgnoreCase(scope)) {
-                // 如果scope不是remote，scope为null、local，则会进行本地导出，会根据当前url新建1个url并将新url的protocol改为injvm，然后进行导出
+                // 如果scope不是remote，scope为null、local，则会进行本地暴露，会根据当前url新建1个url并将新url的protocol改为injvm，然后进行暴露
                 exportLocal(url);
             }
             // export to remote if the config is not local (export to local only when config is local)
             if (!SCOPE_LOCAL.equalsIgnoreCase(scope)) {
-                // 如果scope不是local，scope为null、remote，则会进行远程导出
+                // 如果scope不是local，scope为null、remote，则会进行远程暴露
                 if (CollectionUtils.isNotEmpty(registryURLs)) {
                     /* 如果有注册中心，则将服务注册到注册中心 */
 
@@ -576,33 +576,33 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                         // 使用动态代理生成一个Invoker，Invoker表示服务提供者的代理，可以使用Invoker的invoke方法执行服务
                         // 对应的url为 registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-annotation-provider&dubbo=2.0.2&export=dubbo%3A%2F%2F192.168.56.1%3A20880%2Forg.apache.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddubbo-demo-annotation-provider%26bind.ip%3D192.168.56.1%26bind.port%3D20880%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26methods%3DsayHello%2CsayHelloAsync%26pid%3D10984%26release%3D%26service.name%3DServiceBean%3A%2Forg.apache.dubbo.demo.DemoService%26side%3Dprovider%26timestamp%3D1690361577209&id=registryConfig&pid=10984&registry=zookeeper&timestamp=1690361577196
                         // 这个Invoker中包括了服务的实现者、服务接口类、服务的注册地址（针对当前服务的，参数export指定了当前服务）
-                        // 此invoker表示一个可执行的服务，调用invoker的invoke()方法即可执行服务,同时此invoker也可用来导出
+                        // 此invoker表示一个可执行的服务，调用invoker的invoke()方法即可执行服务,同时此invoker也可用来暴露
                         Invoker<?> invoker = PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass,
                                 registryURL.addParameterAndEncoded(EXPORT_KEY, url.toFullString()));
 
                         // DelegateProviderMetaDataInvoker的作用是保存了Invoker对象和服务的配置ServiceConfig对象
                         DelegateProviderMetaDataInvoker wrapperInvoker = new DelegateProviderMetaDataInvoker(invoker, this);
 
-                        // 导出服务
-                        // 到此为止做了哪些事情？ ServiceBean.export()-->刷新ServiceBean的参数-->得到注册中心URL和协议URL-->遍历每个协议URL-->组成服务URL-->生成可执行服务Invoker-->导出服务
+                        // 暴露服务
+                        // 到此为止做了哪些事情？ ServiceBean.export()-->刷新ServiceBean的参数-->得到注册中心URL和协议URL-->遍历每个协议URL-->组成服务URL-->生成可执行服务Invoker-->暴露服务
 
                         // Protocol接口有3个包装类，一个是ProtocolFilterWrapper、ProtocolListenerWrapper、QosProtocolWrapper，
                         // 所以实际上在调用export方法时，会先经过这3个包装类的export方法，
                         // ProtocolFilterWrapper、ProtocolListenerWrapper 的export方法中都对Registry协议进行了判断，不做处理
                         // QosProtocolWrapper 的export方法在Registry协议下会启动qos服务器，其它协议不做处理
 
-                        // 使用特定的协议来对服务进行导出，这里的协议为registry，导出成功后得到一个Exporter
+                        // 使用特定的协议来对服务进行暴露，这里的协议为registry，暴露成功后得到一个Exporter
                         // 1. 先使用registry协议对应的InterfaceCompatibleRegistryProtocol进行服务注册
                         //  ，但是InterfaceCompatibleRegistryProtocol没有覆写export方法，所以调的是父类RegistryProtocol的export方法
                         //      registry://   ---> InterfaceCompatibleRegistryProtocol
                         //      zookeeper://  ---> ZookeeperRegistry
                         //      dubbo://      ---> DubboProtocol
-                        // 2. 注册完了之后，在RegistryProtocol的export方法中使用DubboProtocol进行真正的服务导出
+                        // 2. 注册完了之后，在RegistryProtocol的export方法中使用DubboProtocol进行真正的服务暴露
                         Exporter<?> exporter = PROTOCOL.export(wrapperInvoker);
                         exporters.add(exporter);
                     }
                 } else {
-                    /* 没有配置注册中心时，也会导出服务 */
+                    /* 没有配置注册中心时，也会暴露服务 */
 
                     if (logger.isInfoEnabled()) {
                         logger.info("Export dubbo service " + interfaceClass.getName() + " to url " + url);
@@ -633,7 +633,7 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                 .setHost(LOCALHOST_VALUE)
                 .setPort(0)
                 .build();
-        // 使用特定的协议来对服务进行导出，这里的协议为InjvmProtocol，导出成功后得到一个Exporter
+        // 使用特定的协议来对服务进行暴露，这里的协议为InjvmProtocol，暴露成功后得到一个Exporter
         Exporter<?> exporter = PROTOCOL.export(
                 PROXY_FACTORY.getInvoker(ref, (Class) interfaceClass, local));
         exporters.add(exporter);

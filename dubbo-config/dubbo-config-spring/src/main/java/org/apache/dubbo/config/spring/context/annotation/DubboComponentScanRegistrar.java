@@ -58,7 +58,7 @@ public class DubboComponentScanRegistrar implements ImportBeanDefinitionRegistra
 
         // 注册ServiceClassPostProcessor一个Bean
         // 实现了BeanDefinitionRegistryPostProcessor接口，所以在Spring启动时会调用postProcessBeanDefinitionRegistry方法
-        // 该方法会注册DubboBootstrapApplicationListener监听器，一旦Spring启动完后，就会进行服务导出
+        // 该方法会注册DubboBootstrapApplicationListener监听器，一旦Spring启动完后，就会进行服务暴露
         // 然后会进行扫描，扫描@DubboService注解了的类，然后生成BeanDefinition（会生成两个，一个普通的bean，一个ServiceBean），后续的Spring周期中会生成Bean
         registerServiceClassPostProcessor(packagesToScan, registry);
 

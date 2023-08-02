@@ -237,7 +237,7 @@ public class RegistryProtocol implements Protocol {
         providerUrl = overrideUrlWithConfig(providerUrl, overrideSubscribeListener);
 
         // export invoker
-        // 根据动态配置重写了providerUrl之后，就会调用DubboProtocol或RestProtocol去进行真的的导出服务了
+        // 根据动态配置重写了providerUrl之后，就会调用DubboProtocol或RestProtocol去进行真的的暴露服务了
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker, providerUrl);
 
         // url to registry
@@ -298,7 +298,7 @@ public class RegistryProtocol implements Protocol {
 
         // ServiceConfigurationListener会监听 服务接口名+":"+group+":"+version+".configurators"节点
         // ServiceConfigurationListener 监听的是配置中心 服务 的动态配置数据修改，
-        // 和OverrideListener类似，也是对应一个服务的，所以在每个服务进行导出时都会生成一个
+        // 和OverrideListener类似，也是对应一个服务的，所以在每个服务进行暴露时都会生成一个
         ServiceConfigurationListener serviceConfigurationListener = new ServiceConfigurationListener(providerUrl, listener);
         serviceConfigurationListeners.put(providerUrl.getServiceKey(), serviceConfigurationListener);
         // 根据服务配置重写 url
@@ -350,7 +350,7 @@ public class RegistryProtocol implements Protocol {
         // 到这里才能真正明白，为什么需要InvokerDelegate
         // InvokerDelegate表示一个服务执行者，由下层invoker+url构成，下层invoker不变，url可变
         Invoker<T> invokerDelegate = new InvokerDelegate<T>(originInvoker, newInvokerUrl);
-        // 重新导出服务，这里实际利用的就是DubboProtocol或HttpProtocol去export
+        // 重新暴露服务，这里实际利用的就是DubboProtocol或HttpProtocol去export
         exporter.setExporter(protocol.export(invokerDelegate));
 
         // update registry
@@ -822,7 +822,7 @@ public class RegistryProtocol implements Protocol {
             }
             //The current, may have been merged many times
             Invoker<?> exporterInvoker = exporter.getInvoker();
-            // 当前服务被导出的url
+            // 当前服务被暴露的url
             URL currentUrl = exporterInvoker == null ? null : exporterInvoker.getUrl();
             //Merged with this configuration
             // 根据configurators修改url，configurators是全量的，并不是某个新增的或删除的，所以是基于原始的url进行修改，并不是基于currentUrl
@@ -833,7 +833,7 @@ public class RegistryProtocol implements Protocol {
             newUrl = getConfiguredInvokerUrl(serviceConfigurationListeners.get(originUrl.getServiceKey())
                     .getConfigurators(), newUrl);
 
-            // 修改过的url如果和目前的url不相同，则重新按newUrl导出
+            // 修改过的url如果和目前的url不相同，则重新按newUrl暴露
             if (!newUrl.equals(currentUrl)) {
                 if (newUrl.getParameter(Constants.NEED_REEXPORT, true)) {
                     RegistryProtocol.this.reExport(originInvoker, newUrl);

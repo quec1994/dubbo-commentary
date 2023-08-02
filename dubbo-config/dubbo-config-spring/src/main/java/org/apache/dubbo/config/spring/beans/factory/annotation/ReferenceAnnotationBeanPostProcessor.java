@@ -374,7 +374,7 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
         if (existsServiceBean(referencedBeanName)) {
             ServiceBean serviceBean = getServiceBean(referencedBeanName);
             if (!serviceBean.isExported()) {
-                // 触发ServiceBean的导出逻辑
+                // 触发ServiceBean的暴露逻辑
                 serviceBean.export();
             }
         }

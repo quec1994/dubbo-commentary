@@ -898,7 +898,7 @@ public class DubboBootstrap {
                 logger.info(NAME + " is starting...");
             }
             // 1. export Dubbo Services
-            // 导出服务
+            // 暴露服务
             exportServices();
 
             // Not only provider register
@@ -1097,7 +1097,7 @@ public class DubboBootstrap {
             serviceConfig.setBootstrap(this);
 
             if (exportAsync) {
-                // 异步导出
+                // 异步暴露
                 ExecutorService executor = executorRepository.getServiceExporterExecutor();
                 Future<?> future = executor.submit(() -> {
                     try {
@@ -1108,7 +1108,7 @@ public class DubboBootstrap {
                 });
                 asyncExportingFutures.add(future);
             } else {
-                // 同步导出
+                // 同步暴露
                 exportService(serviceConfig);
             }
         });
@@ -1122,7 +1122,7 @@ public class DubboBootstrap {
                     sc.toString() + "]. Only one service can be exported for the same triple (group, interface, version), " +
                     "please modify the group or version if you really need to export multiple services of the same interface.");
         }
-        // 调 ServiceBean.export() 方法执行导出，但是 ServiceBean 没有覆盖实现 export() 方法，因此此处是直接执行的 ServiceConfig.export() 方法
+        // 调 ServiceBean.export() 方法执行暴露，但是 ServiceBean 没有覆盖实现 export() 方法，因此此处是直接执行的 ServiceConfig.export() 方法
         sc.export();
         exportedServices.put(sc.getServiceName(), sc);
     }

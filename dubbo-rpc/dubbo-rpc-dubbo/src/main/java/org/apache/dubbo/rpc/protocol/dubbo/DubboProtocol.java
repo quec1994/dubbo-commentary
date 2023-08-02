@@ -292,7 +292,7 @@ public class DubboProtocol extends AbstractProtocol {
 
         // DubboExporter类中保存了对应服务的Invoker对象，和当前服务的唯一标志，
         // 当NettyServer接收到请求后，会根据请求中的服务信息，找到服务对应的DubboExporter对象，然后从对象中得到Invoker对象
-        // 构造一个Exporter进行服务导出
+        // 构造一个Exporter进行服务暴露
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
         exporterMap.addExportMap(key, exporter);
 
@@ -341,7 +341,7 @@ public class DubboProtocol extends AbstractProtocol {
                 }
             } else {
                 // server supports reset, use together with override
-                // 服务重新导出时，就会走这里
+                // 服务重新暴露时，就会走这里
                 server.reset(url);
             }
         }

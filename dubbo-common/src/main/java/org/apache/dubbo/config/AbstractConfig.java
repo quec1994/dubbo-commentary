@@ -176,7 +176,7 @@ public abstract class AbstractConfig implements Serializable {
                             }
                         }
                         // 前缀+key
-                        // 为什么要有前缀？因为在服务导出时，会存在很多的配置项与值，这些配置项都会存入到map中，防止key冲突
+                        // 为什么要有前缀？因为在服务暴露时，会存在很多的配置项与值，这些配置项都会存入到map中，防止key冲突
                         // 比如可以针对单个方法进行配置，此时前缀就是方法名
                         if (prefix != null && prefix.length() > 0) {
                             key = prefix + "." + key;

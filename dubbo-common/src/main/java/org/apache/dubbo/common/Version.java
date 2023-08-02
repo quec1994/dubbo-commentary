@@ -158,7 +158,7 @@ public final class Version {
     }
 
     public static String getVersion(Class<?> cls, String defaultVersion) {
-        // 获取版本信息，这个方法在服务导出和服务引入时都会用到
+        // 获取版本信息，这个方法在服务暴露和服务引入时都会用到
 
         try {
             // find version info from MANIFEST.MF first

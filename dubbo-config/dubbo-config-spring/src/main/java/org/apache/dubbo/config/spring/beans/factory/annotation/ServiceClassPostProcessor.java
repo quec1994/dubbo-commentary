@@ -126,7 +126,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         // 注册DubboBootstrapApplicationListener监听器
         // 继承了OnceApplicationContextEventListener类，OnceApplicationContextEventListener实现了ApplicationListener接口，
         // 所以在Spring启动完后会调用OnceApplicationContextEventListener的onApplicationEvent方法，
-        // 然后调用DubboBootstrapApplicationListener的onApplicationContextEvent方法，启动dubbo框架，进行服务导出
+        // 然后调用DubboBootstrapApplicationListener的onApplicationContextEvent方法，启动dubbo框架，进行服务暴露
         registerInfrastructureBean(registry, DubboBootstrapApplicationListener.BEAN_NAME, DubboBootstrapApplicationListener.class);
 
         // 根据环境变量对包路径进行占位符替换
