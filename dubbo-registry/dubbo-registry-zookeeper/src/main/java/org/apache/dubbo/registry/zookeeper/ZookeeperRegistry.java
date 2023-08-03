@@ -393,7 +393,9 @@ public class ZookeeperRegistry extends FailbackRegistry {
         private volatile CountDownLatch latch;
 
         RegistryChildListenerImpl(URL url, NotifyListener listener, CountDownLatch latch) {
+            // consumerUrl
             this.url = url;
+            // 监听器，RegistryDirectory
             this.listener = listener;
             // 防止启动的时候出现数据变更
             this.latch = latch;

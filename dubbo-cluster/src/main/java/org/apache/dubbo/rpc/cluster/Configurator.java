@@ -70,6 +70,8 @@ public interface Configurator extends Comparable<Configurator> {
      * @return converted configurator list
      */
     static Optional<List<Configurator>> toConfigurators(List<URL> urls) {
+        // 将url转换成Configurator
+
         /*
         将 override urls 转换为 map，以便在重新引用时使用。每次发送所有规则时，URL都会重新组装并计算URL合约：
         1. override://0.0.0.0/...（或override://ip:port...?anyhost=true)&para1=value1… 表示全局规则（所有提供者都生效）

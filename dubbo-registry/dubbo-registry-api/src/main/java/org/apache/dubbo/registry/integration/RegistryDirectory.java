@@ -16,7 +16,6 @@
  */
 package org.apache.dubbo.registry.integration;
 
-import java.util.HashMap;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.config.configcenter.DynamicConfiguration;
 import org.apache.dubbo.common.constants.CommonConstants;
@@ -41,6 +40,7 @@ import org.apache.dubbo.rpc.protocol.InvokerWrapper;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -115,23 +115,34 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
 
     @Override
     public synchronized void notify(List<URL> urls) {
+        // 收到配置变更通知
+
+        // 将url按类别分组
         Map<String, List<URL>> categoryUrls = urls.stream()
                 .filter(Objects::nonNull)
+                // 过滤掉不关心的
                 .filter(this::isValidCategory)
                 .filter(this::isNotCompatibleFor26x)
+                // 判断类别
                 .collect(Collectors.groupingBy(this::judgeCategory));
 
+        // 动态配置变更（旧版）
         List<URL> configuratorURLs = categoryUrls.getOrDefault(CONFIGURATORS_CATEGORY, Collections.emptyList());
+        // 把configurators属性赋值为最新的
         this.configurators = Configurator.toConfigurators(configuratorURLs).orElse(this.configurators);
 
+        // 路由规则变更（旧版）
         List<URL> routerURLs = categoryUrls.getOrDefault(ROUTERS_CATEGORY, Collections.emptyList());
+        // 为routerChain属性添加路由规则
         toRouters(routerURLs).ifPresent(this::addRouters);
 
         // providers
+        // 服务提供者信息变更
         List<URL> providerURLs = categoryUrls.getOrDefault(PROVIDERS_CATEGORY, Collections.emptyList());
         /**
          * 3.x added for extend URL address
          */
+        // 3.x添加，URL地址监听器扩展点，用于扩展URL地址
         ExtensionLoader<AddressListener> addressListenerExtensionLoader = ExtensionLoader.getExtensionLoader(AddressListener.class);
         List<AddressListener> supportedListeners = addressListenerExtensionLoader.getActivateExtension(getUrl(), (String[]) null);
         if (supportedListeners != null && !supportedListeners.isEmpty()) {
@@ -139,6 +150,7 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                 providerURLs = addressListener.notify(providerURLs, getConsumerUrl(), this);
             }
         }
+        // 更新动态配置和invoker
         refreshOverrideAndInvoker(providerURLs);
     }
 
@@ -154,9 +166,14 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
     }
 
     // RefreshOverrideAndInvoker will be executed by registryCenter and configCenter, so it should be synchronized.
+    // refreshOverrideAndInvoker将由registryCenter和configCenter执行，因此应该加锁同步执行
     private synchronized void refreshOverrideAndInvoker(List<URL> urls) {
         // mock zookeeper://xxx?mock=return null
+
+        // 根据最新动态配置更新overrideDirectoryUrl
         overrideDirectoryUrl();
+        // 根据最新的服务提供者URL刷新invoker
+        // urls —— providerURLs
         refreshInvoker(urls);
     }
 
@@ -173,16 +190,25 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
      * @param invokerUrls this parameter can't be null
      */
     private void refreshInvoker(List<URL> invokerUrls) {
+        // 根据最新的服务提供者URL刷新invoker
+        // invokerUrls —— 最新providerURLs
+
         Assert.notNull(invokerUrls, "invokerUrls should not be null");
 
         if (invokerUrls.size() == 1
                 && invokerUrls.get(0) != null
                 && EMPTY_PROTOCOL.equals(invokerUrls.get(0).getProtocol())) {
+            // 服务提供者全部下线了
+
+            // 禁止访问
             this.forbidden = true; // Forbid to access
             this.invokers = Collections.emptyList();
             routerChain.setInvokers(this.invokers);
             destroyAllInvokers(); // Close all invokers
         } else {
+            // 服务提供者信息变更
+
+            // 保存旧的urlInvokerMap，以便重新生成后销毁invoker
             Map<URL, Invoker<T>> oldUrlInvokerMap = this.urlInvokerMap; // local reference
             if (invokerUrls == Collections.<URL>emptyList()) {
                 invokerUrls = new ArrayList<>();
@@ -191,12 +217,15 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                 invokerUrls.addAll(this.cachedInvokerUrls);
             } else {
                 this.cachedInvokerUrls = new HashSet<>();
+                // 缓存invokerUrls，便于比较
                 this.cachedInvokerUrls.addAll(invokerUrls);//Cached invoker urls, convenient for comparison
             }
             if (invokerUrls.isEmpty()) {
                 return;
             }
+            // 允许访问
             this.forbidden = false; // Allow to access
+            // 将url List转换为Invoker Map
             Map<URL, Invoker<T>> newUrlInvokerMap = toInvokers(invokerUrls);// Translate url list to Invoker map
 
             /**
@@ -253,6 +282,8 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
      * else :routers list
      */
     private Optional<List<Router>> toRouters(List<URL> urls) {
+        // 将url转换成Router对象，归一化配置
+
         if (CollectionUtils.isEmpty(urls)) {
             return Optional.empty();
         }
@@ -264,9 +295,11 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
             }
             String routerType = url.getParameter(ROUTER_KEY);
             if (routerType != null && routerType.length() > 0) {
+                // 将url里配置的路由规则类别放到协议
                 url = url.setProtocol(routerType);
             }
             try {
+                // 根据url的router参数选择不同的转换规则
                 Router router = ROUTER_FACTORY.getRouter(url);
                 if (!routers.contains(router)) {
                     routers.add(router);
@@ -335,6 +368,11 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                         enabled = url.getParameter(ENABLED_KEY, true);
                     }
                     if (enabled) {
+                        // Protocol接口有3个包装类，一个是ProtocolFilterWrapper、ProtocolListenerWrapper、QosProtocolWrapper，
+                        // 所以实际上在调用refer方法时，会先经过这3个包装类的refer方法，
+                        // ProtocolFilterWrapper 的refer方法中会添加过滤器链
+                        // ProtocolListenerWrapper 的refer方法中会添加监听器
+                        // QosProtocolWrapper 的refer方法在Registry协议下会启动qos服务器，其它协议不做处理
                         invoker = new InvokerDelegate<>(protocol.refer(serviceType, url), url, providerUrl);
                     }
                 } catch (Throwable t) {
@@ -422,6 +460,7 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
         if (localUrlInvokerMap != null) {
             for (Invoker<T> invoker : new ArrayList<>(localUrlInvokerMap.values())) {
                 try {
+                    // 调用invoker的销毁方法
                     invoker.destroyAll();
                 } catch (Throwable t) {
                     logger.warn("Failed to destroy service " + serviceKey + " to provider " + invoker.getUrl(), t);
@@ -490,11 +529,14 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
     }
 
     private boolean isValidCategory(URL url) {
+        // 获取url参数里的类别，默认为providers
         String category = url.getParameter(CATEGORY_KEY, DEFAULT_CATEGORY);
         if ((ROUTERS_CATEGORY.equals(category) || ROUTE_PROTOCOL.equals(url.getProtocol())) ||
                 PROVIDERS_CATEGORY.equals(category) ||
                 CONFIGURATORS_CATEGORY.equals(category) || DYNAMIC_CONFIGURATORS_CATEGORY.equals(category) ||
                 APP_DYNAMIC_CONFIGURATORS_CATEGORY.equals(category)) {
+            // url类别：routers、providers、configurators、dynamicconfigurators、appdynamicconfigurators
+            // url协议：route
             return true;
         }
         logger.warn("Unsupported category " + category + " in notified url: " + url + " from registry " +
@@ -508,12 +550,18 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
 
     private void overrideDirectoryUrl() {
         // merge override parameters
+        // 合并动态配置信息，更新overrideDirectoryUrl
+
+        // directoryUrl是原始的
         this.overrideDirectoryUrl = directoryUrl;
+        // 使用动态配置（旧版）更新overrideDirectoryUrl
         List<Configurator> localConfigurators = this.configurators; // local reference
         doOverrideUrl(localConfigurators);
+        // 使用全局动态配置（新版）更新overrideDirectoryUrl
         List<Configurator> localAppDynamicConfigurators = CONSUMER_CONFIGURATION_LISTENER.getConfigurators(); // local reference
         doOverrideUrl(localAppDynamicConfigurators);
         if (referenceConfigurationListener != null) {
+            // 使用应用动态配置（新版）更新overrideDirectoryUrl
             List<Configurator> localDynamicConfigurators = referenceConfigurationListener.getConfigurators(); // local reference
             doOverrideUrl(localDynamicConfigurators);
         }

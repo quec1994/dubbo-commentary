@@ -36,6 +36,8 @@ public class MockClusterWrapper implements Cluster {
     @Override
     public <T> Invoker<T> join(Directory<T> directory) throws RpcException {
         return new MockClusterInvoker<T>(directory,
+                // 根据directory.consumerUrl.parameter[cluster]执行指定的Cluster得到指定的invoker，默认 FailoverCluster
+                // FailoverCluster 没有覆写 join 方法，因此调的是父类AbstractCluster的join方法
                 this.cluster.join(directory));
     }
 

@@ -520,6 +520,8 @@ class URL implements Serializable {
     }
 
     public URL setAddress(String address) {
+        // 将字符串转换成URL对象
+
         int i = address.lastIndexOf(':');
         String host;
         int port = this.port;
@@ -554,6 +556,7 @@ class URL implements Serializable {
         String[] backups = getParameter(RemotingConstants.BACKUP_KEY, new String[0]);
         if (backups != null && backups.length > 0) {
             for (String backup : backups) {
+                // 将字符串转换成URL对象
                 urls.add(this.setAddress(backup));
             }
         }

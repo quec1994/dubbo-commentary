@@ -71,6 +71,7 @@ public abstract class DynamicDirectory<T> extends AbstractDirectory<T> implement
 
     protected final String serviceKey; // Initialization at construction time, assertion not null
     protected final Class<T> serviceType; // Initialization at construction time, assertion not null
+    // 原始的directoryUrl，即consumerUrl，构造时初始化，断言不为null，并且总是分配非null值
     protected final URL directoryUrl; // Initialization at construction time, assertion not null, and always assign non null value
     protected final boolean multiGroup;
     protected Protocol protocol; // Initialization at the time of injection, the assertion is not null
@@ -79,6 +80,7 @@ public abstract class DynamicDirectory<T> extends AbstractDirectory<T> implement
     protected boolean shouldRegister;
     protected boolean shouldSimplified;
 
+    // 合并动态配置后的directoryUrl，即consumerUrl，构造时初始化，断言不为null，并且总是分配非null值
     protected volatile URL overrideDirectoryUrl; // Initialization at construction time, assertion not null, and always assign non null value
 
     protected volatile URL registeredConsumerUrl;
@@ -89,6 +91,7 @@ public abstract class DynamicDirectory<T> extends AbstractDirectory<T> implement
      * Rule one: for a certain provider <ip:port,timeout=100>
      * Rule two: for all providers <* ,timeout=5000>
      */
+    // 旧版动态配置
     protected volatile List<Configurator> configurators; // The initial value is null and the midway may be assigned to null, please use the local variable reference
 
     protected volatile List<Invoker<T>> invokers;
@@ -118,9 +121,13 @@ public abstract class DynamicDirectory<T> extends AbstractDirectory<T> implement
         this.serviceType = serviceType;
         this.serviceKey = super.getConsumerUrl().getServiceKey();
 
+        // 转换registryUrl到consumerUrl
         this.overrideDirectoryUrl = this.directoryUrl = turnRegistryUrlToConsumerUrl(url);
+        // zookeeper://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-annotation-consumer&dubbo=2.0.2&id=org.apache.dubbo.config.RegistryConfig#0&pid=16256&refer=application%3Ddubbo-demo-annotation-consumer%26dubbo%3D2.0.2%26init%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26methods%3DsayHello%2CsayHelloAsync%26pid%3D16256%26register.ip%3D192.168.56.1%26side%3Dconsumer%26sticky%3Dfalse%26timestamp%3D1691050126046&timestamp=1691050126114
+
         String group = directoryUrl.getParameter(GROUP_KEY, "");
         this.multiGroup = group != null && (ANY_VALUE.equals(group) || group.contains(","));
+        // zk上的dubbo.router.should-fail-fast节点内容
         this.shouldFailFast = Boolean.parseBoolean(ConfigurationUtils.getProperty(Constants.SHOULD_FAIL_FAST_KEY, "true"));
     }
 

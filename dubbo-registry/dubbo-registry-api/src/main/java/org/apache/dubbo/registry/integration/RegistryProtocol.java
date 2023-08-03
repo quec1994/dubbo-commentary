@@ -611,6 +611,7 @@ public class RegistryProtocol implements Protocol {
 
     public <T> ClusterInvoker<T> getInvoker(Cluster cluster, Registry registry, Class<T> type, URL url) {
         // FIXME, this method is currently not used, create the right registry before enable.
+        // 实例化RegistryDirectory
         DynamicDirectory<T> directory = new RegistryDirectory<>(type, url);
         return doCreateInvoker(directory, cluster, registry, type);
     }
@@ -642,7 +643,8 @@ public class RegistryProtocol implements Protocol {
         // 当前所引入的服务的老版本路由器目录：/dubbo/org.apache.dubbo.demo.DemoService/routers
         directory.subscribe(toSubscribeUrl(urlToRegistry));
 
-        // 利用传进来的cluster，join得到invoker, MockClusterWrapper
+        // 会先经过MockClusterWrapper，在MockClusterWrapper里利用传进来的cluster，join得到invoker
+        // MockClusterInvoker->chain#AbstractCluster.InterceptorInvokerNode->FailoverClusterInvoker
         return (ClusterInvoker<T>) cluster.join(directory);
     }
 

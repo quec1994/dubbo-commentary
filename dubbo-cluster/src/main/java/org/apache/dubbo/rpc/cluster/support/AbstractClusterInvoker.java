@@ -76,6 +76,7 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
 
         this.directory = directory;
         //sticky: invoker.isAvailable() should always be checked before using when availablecheck is true.
+        // 当availalecheck为true时，invoker.isAvailable（）应始终在使用前进行检查。
         this.availablecheck = url.getParameter(CLUSTER_AVAILABLE_CHECK_KEY, DEFAULT_CLUSTER_AVAILABLE_CHECK);
     }
 

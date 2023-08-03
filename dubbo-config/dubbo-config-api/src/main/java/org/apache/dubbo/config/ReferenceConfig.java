@@ -436,15 +436,17 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
 
                 // 这里的协议可能为registry（注册中心URL，远端服务地址从注册中心获取），也可能是直连URL的协议（比如：dubbo），
                 //      registry://   ---> InterfaceCompatibleRegistryProtocol
-                //      zookeeper://  ---> ZookeeperRegistry
                 //      dubbo://      ---> DubboProtocol
                 // 如果是注册中心URL（registry://）
-                // 1. 先使用registry协议对应的InterfaceCompatibleRegistryProtocol进行服务注册
-                //  ，但是InterfaceCompatibleRegistryProtocol没有覆写refer方法，所以调的是父类RegistryProtocol的refer方法
-                // 2. 订阅完服务地址之后，在RegistryProtocol的refer方法中使用DubboProtocol进行真正的远程服务引用
+                // 1. 先使用registry协议对应的InterfaceCompatibleRegistryProtocol进行服务注册，
+                //    但是InterfaceCompatibleRegistryProtocol没有覆写refer方法，所以调的是父类RegistryProtocol的refer方法
+                // 2. 会在RegistryProtocol的getInvoker方法创建RegistryDirectory，然后通过RegistryDirectory订阅远程服务目录
+                // 3. RegistryDirectory会通过ZookeeperRegistry进行真正的zk节点监听
+                // 4. RegistryDirectory同时也是一个监听器，ZookeeperRegistry订阅完服务地址之后，
+                //    会回调RegistryDirectory的notify方法调用DubboProtocol进行真正的远程服务引用
                 invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
-                // MockClusterInvoker-->FailoverClusterInvoker-->RegistryDirectory
-                //                                                 --->RegistryDirectory$InvokerDelegate-->ListenerInvokerWrapper-->ProtocolFilterWrapper$CallbackRegistrationInvoker-->ConsumerContextFilter-->FutureFilter-->MonitorFilter-->AsyncToSyncInvoker-->DubboInvoker
+                // MigrationInvoker->MockClusterInvoker->chain(AbstractCluster.InterceptorInvokerNode)->FailoverClusterInvoker->FailoverClusterInvoker.directory(RegistryDirectory)
+                // RegistryDirectory.invokers->RegistryDirectory.InvokerDelegate->chain(FilterNode)->ListenerInvokerWrapper->AsyncToSyncInvoker->DubboInvoker
             } else {
                 // 配置了多个url
 

@@ -339,6 +339,7 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
             // 订阅注册中心远程服务URL，生成远程服务Invoker
             // 调的是 InterfaceCompatibleRegistryProtocol.getInvoker
             invoker = registryProtocol.getInvoker(cluster, registry, type, url);
+            // MockClusterInvoker->ClusterInterceptorChain->FailoverClusterInvoker
 
             if (migrationMultiRegistry) {
                 setListener(serviceDiscoveryInvoker, () -> {

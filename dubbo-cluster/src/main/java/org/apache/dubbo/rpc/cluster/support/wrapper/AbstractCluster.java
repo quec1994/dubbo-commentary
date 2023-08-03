@@ -35,6 +35,7 @@ import static org.apache.dubbo.common.constants.CommonConstants.REFERENCE_INTERC
 public abstract class AbstractCluster implements Cluster {
 
     private <T> Invoker<T> buildClusterInterceptors(AbstractClusterInvoker<T> clusterInvoker, String key) {
+
         AbstractClusterInvoker<T> last = clusterInvoker;
         List<ClusterInterceptor> interceptors = ExtensionLoader.getExtensionLoader(ClusterInterceptor.class).getActivateExtension(clusterInvoker.getUrl(), key);
 
@@ -50,7 +51,10 @@ public abstract class AbstractCluster implements Cluster {
 
     @Override
     public <T> Invoker<T> join(Directory<T> directory) throws RpcException {
+        // doJoin - 根据directory.consumerUrl.parameter[cluster]执行指定的Cluster得到指定的invoker，默认 FailoverCluster
+        // buildClusterInterceptors - 添加拦截器链
         return buildClusterInterceptors(doJoin(directory), directory.getUrl().getParameter(REFERENCE_INTERCEPTOR_KEY));
+        // chain#AbstractCluster.InterceptorInvokerNode->FailoverClusterInvoker
     }
 
     protected abstract <T> AbstractClusterInvoker<T> doJoin(Directory<T> directory) throws RpcException;

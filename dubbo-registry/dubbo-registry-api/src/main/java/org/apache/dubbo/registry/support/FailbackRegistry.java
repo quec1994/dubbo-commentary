@@ -66,9 +66,11 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
     public FailbackRegistry(URL url) {
         super(url);
+        // 重试间隔时间
         this.retryPeriod = url.getParameter(REGISTRY_RETRY_PERIOD_KEY, DEFAULT_REGISTRY_RETRY_PERIOD);
 
         // since the retry task will not be very much. 128 ticks is enough.
+        // 重试任务
         retryTimer = new HashedWheelTimer(new NamedThreadFactory("DubboRegistryRetryTimer", true), retryPeriod, TimeUnit.MILLISECONDS, 128);
     }
 
@@ -366,10 +368,10 @@ public abstract class FailbackRegistry extends AbstractRegistry {
     @Override
     protected void notify(URL url, NotifyListener listener, List<URL> urls) {
         /*
-            接收到通知，处理通知的方法
-            url – consumerUrl
-            listener – 监听器
-            urls – 从zk上取下来的节点转换而成的多个URL，比如 empty://、override://、dubbo://
+         * 接收到通知，处理通知的方法
+         * url – consumerUrl
+         * listener – 监听器，RegistryDirectory
+         * urls – 从zk上取下来的节点转换而成的多个URL，比如 empty://、override://、dubbo://
          */
         if (url == null) {
             throw new IllegalArgumentException("notify url == null");
@@ -378,6 +380,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             throw new IllegalArgumentException("notify listener == null");
         }
         try {
+            // 调用监听器（RegistryDirectory）
             doNotify(url, listener, urls);
         } catch (Exception t) {
             // 处理通知失败

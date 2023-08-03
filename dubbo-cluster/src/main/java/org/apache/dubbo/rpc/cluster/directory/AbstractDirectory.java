@@ -52,7 +52,7 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
 
     protected volatile URL consumerUrl;
 
-    // url中的refer参数转换而来
+    // url中的refer参数转换而来，即消费者端配置（ReferenceConfig）的参数
     protected final Map<String, String> queryMap; // Initialization at construction time, assertion not null
     protected final String consumedProtocol;
 
@@ -71,6 +71,7 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
             throw new IllegalArgumentException("url == null");
         }
 
+        // 将消费者端配置的参数转换成map
         this.queryMap = StringUtils.parseQueryString(url.getParameterAndDecoded(REFER_KEY));
         this.consumedProtocol = this.queryMap.get(PROTOCOL_KEY) == null ? DUBBO : this.queryMap.get(PROTOCOL_KEY);
         this.url = url.removeParameter(REFER_KEY).removeParameter(MONITOR_KEY);

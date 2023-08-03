@@ -595,7 +595,6 @@ public class ServiceConfig<T> extends ServiceConfigBase<T> {
                         // 1. 先使用registry协议对应的InterfaceCompatibleRegistryProtocol进行服务注册
                         //  ，但是InterfaceCompatibleRegistryProtocol没有覆写export方法，所以调的是父类RegistryProtocol的export方法
                         //      registry://   ---> InterfaceCompatibleRegistryProtocol
-                        //      zookeeper://  ---> ZookeeperRegistry
                         //      dubbo://      ---> DubboProtocol
                         // 2. 注册完了之后，在RegistryProtocol的export方法中使用DubboProtocol进行真正的服务暴露
                         Exporter<?> exporter = PROTOCOL.export(wrapperInvoker);
