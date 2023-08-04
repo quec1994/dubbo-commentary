@@ -178,10 +178,14 @@ public class ConfigUtils {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static String getProperty(String key, String defaultValue) {
+        // 取 JVM参数>dubbo.properties文件 里配置的 key 对应的值
+
+        // 取JVM参数里配置的 key 对应的值
         String value = System.getProperty(key);
         if (value != null && value.length() > 0) {
             return value;
         }
+        // 取dubbo.properties文件里配置的 key 对应的值
         Properties properties = getProperties();
         return replaceProperty(properties.getProperty(key, defaultValue), (Map) properties);
     }

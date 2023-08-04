@@ -29,6 +29,7 @@ public class AllDispatcher implements Dispatcher {
 
     @Override
     public ChannelHandler dispatch(ChannelHandler handler, URL url) {
+        // 创建一个多通道执行器
         return new AllChannelHandler(handler, url);
     }
 

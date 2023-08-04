@@ -32,12 +32,17 @@ public class NettyTransporter implements Transporter {
 
     @Override
     public RemotingServer bind(URL url, ChannelHandler handler) throws RemotingException {
+        // 生成一个NettyServer, 这个内部会启动一个Netty服务，接收来自客服的的请求
         return new NettyServer(url, handler);
     }
 
     @Override
     public Client connect(URL url, ChannelHandler handler) throws RemotingException {
+        // handler：DecodeHandler->HeaderExchangeHandler->requestHandler
+
+        // 生成一个NettyClient, 这个内部会去进行链接
         return new NettyClient(url, handler);
+        // NettyClient.handler--->MultiMessageHandler->HeartbeatHandler->AllChannelHandler->DecodeHandler->HeaderExchangeHandler->requestHandler
     }
 
 }

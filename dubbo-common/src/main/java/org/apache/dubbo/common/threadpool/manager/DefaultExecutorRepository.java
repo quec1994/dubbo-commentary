@@ -73,6 +73,7 @@ public class DefaultExecutorRepository implements ExecutorRepository {
         // data 存储的格式是这样的:{"java.util.concurrent.ExecutorService":{"20880":executor}}
         Map<Integer, ExecutorService> executors = data.computeIfAbsent(EXECUTOR_SERVICE_COMPONENT_KEY, k -> new ConcurrentHashMap<>());
         //issue-7054:Consumer's executor is sharing globally, key=Integer.MAX_VALUE. Provider's executor is sharing by protocol.
+        //issue-7054:消费者的executor是全局共享的，key=Integer.MAX_VALUE。提供者的executor按协议共享。
         // 如果服务消费者，portKey为Integer.MAX_VALUE
         // 如果是服务提供者，portKey为服务的端口号
         Integer portKey = CONSUMER_SIDE.equalsIgnoreCase(url.getParameter(SIDE_KEY)) ? Integer.MAX_VALUE : url.getPort();
@@ -88,10 +89,13 @@ public class DefaultExecutorRepository implements ExecutorRepository {
     }
 
     public ExecutorService getExecutor(URL url) {
+        // data 是线程池缓存，key为java.util.concurrent.ExecutorService
+        // data 存储的格式是这样的:{"java.util.concurrent.ExecutorService":{"20880":executor}}
         Map<Integer, ExecutorService> executors = data.get(EXECUTOR_SERVICE_COMPONENT_KEY);
         /**
          * It's guaranteed that this method is called after {@link #createExecutorIfAbsent(URL)}, so data should already
          * have Executor instances generated and stored.
+         * 可以保证这个方法是在{@link #createExecutorIfAbsent(URL)}之后调用的，所以数据应该已经生成并存储Executor实例。
          */
         if (executors == null) {
             logger.warn("No available executors, this is not expected, framework should call createExecutorIfAbsent first " +
@@ -99,11 +103,13 @@ public class DefaultExecutorRepository implements ExecutorRepository {
             return null;
         }
         //issue-7054:Consumer's executor is sharing globally, key=Integer.MAX_VALUE. Provider's executor is sharing by protocol.
+        //issue-7054:消费者的executor是全局共享的，key=Integer.MAX_VALUE。提供者的executor按协议共享。
         Integer portKey = CONSUMER_SIDE.equalsIgnoreCase(url.getParameter(SIDE_KEY)) ? Integer.MAX_VALUE : url.getPort();
         ExecutorService executor = executors.get(portKey);
         if (executor != null && (executor.isShutdown() || executor.isTerminated())) {
             executors.remove(portKey);
             // Does not re-create a shutdown executor, use SHARED_EXECUTOR for downgrade.
+            // 对已关闭的执行器不重新创建，使用SHARED_EXECUTOR进行降级处理。
             executor = null;
             logger.info("Executor for " + url + " is shutdown.");
         }
@@ -173,6 +179,7 @@ public class DefaultExecutorRepository implements ExecutorRepository {
     }
 
     private ExecutorService createExecutor(URL url) {
+        // 消息处理执行器线程池扩展点
         return (ExecutorService) ExtensionLoader.getExtensionLoader(ThreadPool.class).getAdaptiveExtension().getExecutor(url);
     }
 

@@ -91,7 +91,7 @@ public abstract class DynamicDirectory<T> extends AbstractDirectory<T> implement
      * Rule one: for a certain provider <ip:port,timeout=100>
      * Rule two: for all providers <* ,timeout=5000>
      */
-    // 旧版动态配置
+    // 旧版动态配置（dubbo 2.6及之前的版本）
     protected volatile List<Configurator> configurators; // The initial value is null and the midway may be assigned to null, please use the local variable reference
 
     protected volatile List<Invoker<T>> invokers;

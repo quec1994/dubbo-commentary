@@ -50,9 +50,12 @@ public class DefaultProviderURLMergeProcessor implements ProviderURLMergeProcess
     public URL mergeUrl(URL remoteUrl, Map<String, String> localParametersMap) {
 
         Map<String, String> map = new HashMap<>();
+        // Provider（服务提供者端配置）
         Map<String, String> remoteMap = remoteUrl.getParameters();
 
+        // 移除掉服务提供者端自己生效的配置
         if (remoteMap != null && remoteMap.size() > 0) {
+            // 给结果加入服务者端的配置
             map.putAll(remoteMap);
 
             // Remove configurations from provider, some items should be affected by provider.
@@ -79,8 +82,10 @@ public class DefaultProviderURLMergeProcessor implements ProviderURLMergeProcess
         }
 
         if (localParametersMap != null && localParametersMap.size() > 0) {
+            // Consumer（xml/注解 配置）
             Map<String, String> copyOfLocalMap = new HashMap<>(localParametersMap);
 
+            // 移除掉服务消费者端自己生效的配置
             if(map.containsKey(GROUP_KEY)){
                 copyOfLocalMap.remove(GROUP_KEY);
             }
@@ -97,12 +102,15 @@ public class DefaultProviderURLMergeProcessor implements ProviderURLMergeProcess
             copyOfLocalMap.remove(TIMESTAMP_KEY);
             copyOfLocalMap.remove(TAG_KEY);
 
+            // 使用消费者端的配置覆盖服务者端的配置
             map.putAll(copyOfLocalMap);
 
             if (remoteMap != null) {
+                // 加入特殊参数 remote.application
                 map.put(REMOTE_APPLICATION_KEY, remoteMap.get(APPLICATION_KEY));
 
                 // Combine filters and listeners on Provider and Consumer
+                // 组合提供者端配置的消费者端需要的filters，以及消费者端自己配置的filters
                 String remoteFilter = remoteMap.get(REFERENCE_FILTER_KEY);
                 String localFilter = copyOfLocalMap.get(REFERENCE_FILTER_KEY);
                 if (remoteFilter != null && remoteFilter.length() > 0
@@ -110,6 +118,7 @@ public class DefaultProviderURLMergeProcessor implements ProviderURLMergeProcess
                     map.put(REFERENCE_FILTER_KEY, remoteFilter + "," + localFilter);
                 }
 
+                // 组合提供者端配置的消费者端需要的listeners，以及消费者端自己配置的listeners
                 String remoteListener = remoteMap.get(INVOKER_LISTENER_KEY);
                 String localListener = copyOfLocalMap.get(INVOKER_LISTENER_KEY);
                 if (remoteListener != null && remoteListener.length() > 0

@@ -63,6 +63,8 @@ public class Transporters {
     }
 
     public static Client connect(URL url, ChannelHandler... handlers) throws RemotingException {
+        // handlers[0]：DecodeHandler->HeaderExchangeHandler->requestHandler
+
         if (url == null) {
             throw new IllegalArgumentException("url == null");
         }
@@ -74,6 +76,7 @@ public class Transporters {
         } else {
             handler = new ChannelHandlerDispatcher(handlers);
         }
+        // 使用 NettyTransporter 去链接服务提供者端
         return getTransporter().connect(url, handler);
     }
 

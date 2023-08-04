@@ -57,9 +57,11 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
         // set default needReconnect true when channel is not connected
         needReconnect = url.getParameter(Constants.SEND_RECONNECT_KEY, true);
 
+        // 建立消费者执行器线程池
         initExecutor(url);
 
         try {
+            // 打开netty客户端
             doOpen();
         } catch (Throwable t) {
             close();
@@ -70,6 +72,7 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
 
         try {
             // connect.
+            // 链接服务端，建立TCP长连接（socket连接）
             connect();
             if (logger.isInfoEnabled()) {
                 logger.info("Start " + getClass().getSimpleName() + " " + NetUtils.getLocalAddress() + " connect to the server " + getRemoteAddress());
@@ -92,6 +95,7 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
 
     private void initExecutor(URL url) {
         //issue-7054:Consumer's executor is sharing globally, thread name not require provider ip.
+        //issue-7054：消费者的执行器是全局共享的，线程名称不需要提供者ip。
         url = url.addParameter(THREAD_NAME_KEY, CLIENT_THREAD_POOL_NAME);
         url = url.addParameterIfAbsent(THREADPOOL_KEY, DEFAULT_CLIENT_THREADPOOL);
         executor = executorRepository.createExecutorIfAbsent(url);
@@ -195,6 +199,7 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
                 return;
             }
 
+            // 执行链接
             doConnect();
 
             if (!isConnected()) {

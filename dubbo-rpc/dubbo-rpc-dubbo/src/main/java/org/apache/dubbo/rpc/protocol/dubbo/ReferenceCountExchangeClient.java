@@ -181,6 +181,7 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
                 client.close(timeout);
             }
 
+            // 关闭client时，需要将client设置为LazyConnectExchangeClient，如果进行了新的调用，则client将“复活”。
             replaceWithLazyClient();
         }
     }
@@ -198,15 +199,18 @@ final class ReferenceCountExchangeClient implements ExchangeClient {
      */
     private void replaceWithLazyClient() {
         // start warning at second replaceWithLazyClient()
+        // 启动警告在第二次替换时replaceWithLazyClient()
         if (disconnectCount.getAndIncrement() % warningPeriod == 1) {
             logger.warn(url.getAddress() + " " + url.getServiceKey() + " safe guard client , should not be called ,must have a bug.");
         }
 
         /**
          * the order of judgment in the if statement cannot be changed.
+         * if语句中的判断顺序不能更改。
          */
         if (!(client instanceof LazyConnectExchangeClient)) {
             // this is a defensive operation to avoid client is closed by accident, the initial state of the client is false
+            // 这是一种防御操作，以避免客户端意外关闭，客户端的初始状态为假
             URL lazyUrl = url.addParameter(LAZY_CONNECT_INITIAL_STATE_KEY, Boolean.TRUE)
                     // .addParameter(RECONNECT_KEY, Boolean.FALSE)
                     .addParameter(SEND_RECONNECT_KEY, Boolean.TRUE.toString());

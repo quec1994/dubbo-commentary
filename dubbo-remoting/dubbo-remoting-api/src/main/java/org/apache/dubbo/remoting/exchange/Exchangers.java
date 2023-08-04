@@ -101,6 +101,7 @@ public class Exchangers {
     }
 
     public static ExchangeClient connect(URL url, ExchangeHandler handler) throws RemotingException {
+        // handler：requestHandler
         if (url == null) {
             throw new IllegalArgumentException("url == null");
         }
@@ -108,6 +109,7 @@ public class Exchangers {
             throw new IllegalArgumentException("handler == null");
         }
 //        url = url.addParameterIfAbsent(Constants.CODEC_KEY, "exchange");
+        // 得到一个HeaderExchanger去connect
         return getExchanger(url).connect(url, handler);
     }
 

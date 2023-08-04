@@ -138,8 +138,12 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
      * @return
      */
     public ExecutorService getSharedExecutorService() {
+        // 获取当前 Server 或者 Client 的共享执行器
+
+        // 执行器仓库扩展点
         ExecutorRepository executorRepository =
                 ExtensionLoader.getExtensionLoader(ExecutorRepository.class).getDefaultExtension();
+        // 执行器，即线程池
         ExecutorService executor = executorRepository.getExecutor(url);
         if (executor == null) {
             executor = executorRepository.createExecutorIfAbsent(url);

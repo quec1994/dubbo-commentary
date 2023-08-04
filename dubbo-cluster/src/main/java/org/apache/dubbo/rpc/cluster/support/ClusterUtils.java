@@ -36,6 +36,7 @@ public class ClusterUtils {
 
     public static URL mergeUrl(URL remoteUrl, Map<String, String> localMap) {
 
+        // 提供自定义覆盖逻辑扩展点
         String ump = localMap.get(URL_MERGE_PROCESSOR_KEY);
         ProviderURLMergeProcessor providerURLMergeProcessor;
 
@@ -45,6 +46,7 @@ public class ClusterUtils {
             providerURLMergeProcessor = ExtensionLoader.getExtensionLoader(ProviderURLMergeProcessor.class).getExtension("default");
         }
 
+        // 使用Consumer（xml/注解 配置）覆盖 Provider（服务提供者端配置）
         return providerURLMergeProcessor.mergeUrl(remoteUrl, localMap);
     }
 

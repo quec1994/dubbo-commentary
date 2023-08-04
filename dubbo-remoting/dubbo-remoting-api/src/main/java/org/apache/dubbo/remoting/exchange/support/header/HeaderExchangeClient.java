@@ -60,7 +60,9 @@ public class HeaderExchangeClient implements ExchangeClient {
 
         if (startTimer) {
             URL url = client.getUrl();
+            // 启动自动重新链接任务
             startReconnectTask(url);
+            // 启动心跳任务
             startHeartBeatTask(url);
         }
     }

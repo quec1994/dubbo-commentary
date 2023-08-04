@@ -27,6 +27,7 @@ public interface Constants {
     /**
      * By default, a consumer JVM instance and a provider JVM instance share a long TCP connection (except when connections are set),
      * which can set the number of long TCP connections shared to avoid the bottleneck of sharing a single long TCP connection.
+     * 默认情况下，消费者JVM实例和提供者JVM实例共享一个TCP长连接（设置了connections时除外），可以设置共享的TCP长连接数，以避免共享单个TCP长连接的瓶颈。
      */
     String DEFAULT_SHARE_CONNECTIONS = "1";
 

@@ -79,6 +79,18 @@ public class NettyClient extends AbstractClient {
     public NettyClient(final URL url, final ChannelHandler handler) throws RemotingException {
     	// you can customize name and type of client thread pool by THREAD_NAME_KEY and THREADPOOL_KEY in CommonConstants.
     	// the handler will be wrapped: MultiMessageHandler->HeartbeatHandler->handler
+        // 可以通过CommonConstants中的thread_name_KEY和THREADPOOL_KEY自定义客户端线程池的名称和类型。
+        // handler将被包装：MultiMessageHandler->HeartbeatHandler->handler
+
+        // handler：DecodeHandler->HeaderExchangeHandler->requestHandler
+        // 包装后：MultiMessageHandler->HeartbeatHandler->AllChannelHandler->DecodeHandler->HeaderExchangeHandler->requestHandler
+
+        // wrapChannelHandler方法会返回一个MultiMessageHandler，这个Handler会被设置到NettyClient父类AbstractPeer的handler属性上
+        // 而当通过netty发送数据时，会调用AbstractPeer的sent方法
+        // 而当netty接收到数据时，会调用AbstractPeer的received方法，继而调用AbstractPeer的handler属性的received方法
+
+        // NettyClient的父类AbstractClient的构造函数里会执行链接操作，建立socket连接
+        // 而当netty链接成功时，会调用AbstractPeer的connected方法，继而调用AbstractPeer的handler属性的connected方法
     	super(url, wrapChannelHandler(url, handler));
     }
 
@@ -142,6 +154,7 @@ public class NettyClient extends AbstractClient {
             boolean ret = future.awaitUninterruptibly(getConnectTimeout(), MILLISECONDS);
 
             if (ret && future.isSuccess()) {
+                // 获取渠道
                 Channel newChannel = future.channel();
                 try {
                     // Close old channel
@@ -169,6 +182,7 @@ public class NettyClient extends AbstractClient {
                             NettyChannel.removeChannelIfDisconnected(newChannel);
                         }
                     } else {
+                        // 保存渠道
                         NettyClient.this.channel = newChannel;
                     }
                 }

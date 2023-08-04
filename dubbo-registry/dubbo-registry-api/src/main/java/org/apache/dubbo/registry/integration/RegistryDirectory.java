@@ -191,7 +191,7 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
      */
     private void refreshInvoker(List<URL> invokerUrls) {
         // 根据最新的服务提供者URL刷新invoker
-        // invokerUrls —— 最新providerURLs
+        // invokerUrls —— 最新providerURLs（http://xxx:nn/xxx/xx?xx=xx、dubbo://xxx:nn/xxx/xx?xx=xx）
 
         Assert.notNull(invokerUrls, "invokerUrls should not be null");
 
@@ -225,16 +225,20 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
             }
             // 允许访问
             this.forbidden = false; // Allow to access
-            // 将url List转换为Invoker Map
+            // 将url转换为invoker，如果url已经被引用，则不会重新引用
+            // 会先按Protocol进行过滤，并且调用DubboProtocol.refer方法得到DubboInvoker
             Map<URL, Invoker<T>> newUrlInvokerMap = toInvokers(invokerUrls);// Translate url list to Invoker map
 
             /**
              * If the calculation is wrong, it is not processed.
+             * 如果计算错误，则不进行处理。
              *
              * 1. The protocol configured by the client is inconsistent with the protocol of the server.
              *    eg: consumer protocol = dubbo, provider only has other protocol services(rest).
              * 2. The registration center is not robust and pushes illegal specification data.
-             *
+             * 1. 客户端配置的协议与服务器的协议不一致。
+             *    例如：consumer protocol=dubbo，提供者只有其他协议服务（rest）。
+             * 2. 注册中心不健全，并推送非法规范数据。
              */
             if (CollectionUtils.isEmptyMap(newUrlInvokerMap)) {
                 logger.error(new IllegalStateException("urls to invokers error .invokerUrls.size :" + invokerUrls.size() + ", invoker.size :0. urls :" + invokerUrls
@@ -245,6 +249,7 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
             List<Invoker<T>> newInvokers = Collections.unmodifiableList(new ArrayList<>(newUrlInvokerMap.values()));
             // pre-route and build cache, notice that route cache should build on original Invoker list.
             // toMergeMethodInvokerMap() will wrap some invokers having different groups, those wrapped invokers not should be routed.
+            // 得到了所引入的服务Invoker之后，把它们设置到路由链中去，在调用时使用，并且会调用TagRouter的notify方法
             routerChain.setInvokers(newInvokers);
             this.invokers = multiGroup ? toMergeInvokerList(newInvokers) : newInvokers;
             this.urlInvokerMap = newUrlInvokerMap;
@@ -319,17 +324,22 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
      * @return invokers
      */
     private Map<URL, Invoker<T>> toInvokers(List<URL> urls) {
+        // 方法返回值
         Map<URL, Invoker<T>> newUrlInvokerMap = new ConcurrentHashMap<>();
         if (CollectionUtils.isEmpty(urls)) {
             return newUrlInvokerMap;
         }
         Set<URL> keys = new HashSet<>();
+        // ReferenceConfig 里的 protocol 属性
         String queryProtocols = this.queryMap.get(PROTOCOL_KEY);
+        // 遍历当前服务所有的服务提供者URL过滤出符合的URL
         for (URL providerUrl : urls) {
             // If protocol is configured at the reference side, only the matching protocol is selected
+            // 如果在引用端配置了协议，则只选择匹配的协议
             if (queryProtocols != null && queryProtocols.length() > 0) {
                 boolean accept = false;
                 String[] acceptProtocols = queryProtocols.split(",");
+                // 当前消费者如果手动配置了Protocol，那么则进行匹配
                 for (String acceptProtocol : acceptProtocols) {
                     if (providerUrl.getProtocol().equals(acceptProtocol)) {
                         accept = true;
@@ -337,10 +347,13 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                     }
                 }
                 if (!accept) {
+                    // 当前的providerUrl协议不符合，直接取下一个providerUrl
                     continue;
                 }
             }
             if (EMPTY_PROTOCOL.equals(providerUrl.getProtocol())) {
+                // 如果当前的providerUrl的协议是一个特殊值empty协议，直接取下一个providerUrl
+                // 应该是providers下没有节点
                 continue;
             }
             if (!ExtensionLoader.getExtensionLoader(Protocol.class).hasExtension(providerUrl.getProtocol())) {
@@ -348,19 +361,26 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                         " in notified url: " + providerUrl + " from registry " + getUrl().getAddress() +
                         " to consumer " + NetUtils.getLocalHost() + ", supported protocol: " +
                         ExtensionLoader.getExtensionLoader(Protocol.class).getSupportedExtensions()));
+                // 当前providerUrl的协议在应用中没有对应的扩展点
                 continue;
             }
+            // 合并url参数，取最新优先级最高的配置
             URL url = mergeUrl(providerUrl);
 
             if (keys.contains(url)) { // Repeated url
+                // 重复的providerUrl
                 continue;
             }
+            // 缓存合并配置后的providerUrl，用于去重
             keys.add(url);
             // Cache key is url that does not merge with consumer side parameters, regardless of how the consumer combines parameters, if the server url changes, then refer again
+
             Map<URL, Invoker<T>> localUrlInvokerMap = this.urlInvokerMap; // local reference
             Invoker<T> invoker = localUrlInvokerMap == null ? null : localUrlInvokerMap.get(url);
             if (invoker == null) { // Not in the cache, refer again
+                // 如果当前服务提供者URL没有生成过Invoker
                 try {
+                    // url是否含有禁止生成invoker的标志参数，默认为可以生成
                     boolean enabled = true;
                     if (url.hasParameter(DISABLED_KEY)) {
                         enabled = !url.getParameter(DISABLED_KEY, false);
@@ -373,7 +393,15 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                         // ProtocolFilterWrapper 的refer方法中会添加过滤器链
                         // ProtocolListenerWrapper 的refer方法中会添加监听器
                         // QosProtocolWrapper 的refer方法在Registry协议下会启动qos服务器，其它协议不做处理
+
+                        // 调用Protocol的refer方法得到一个Invoker
+                        // 本来应该调用DubboProtocol类的refer方法，但是DubboProtocol类没有覆写refer方法，
+                        // 所以这边调用的是AbstractProtocol类的refer方法
+
                         invoker = new InvokerDelegate<>(protocol.refer(serviceType, url), url, providerUrl);
+                        // InvokerDelegate->chain(FilterNode)->ListenerInvokerWrapper->AsyncToSyncInvoker->DubboInvoker
+                        // DubboInvoker.clients-->ReferenceCountExchangeClient->HeaderExchangeClient->NettyClient
+                        // NettyClient.handler--->MultiMessageHandler->HeartbeatHandler->AllChannelHandler->DecodeHandler->HeaderExchangeHandler->DubboProtocol.requestHandler
                     }
                 } catch (Throwable t) {
                     logger.error("Failed to refer invoker for interface:" + serviceType + ",url:(" + url + ")" + t.getMessage(), t);
@@ -382,6 +410,7 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                     newUrlInvokerMap.put(url, invoker);
                 }
             } else {
+                // 如果当前服务提供者URL生成过Invoker，使用之前生成的invoker，不重复生成
                 newUrlInvokerMap.put(url, invoker);
             }
         }
@@ -396,18 +425,29 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
      * @return
      */
     private URL mergeUrl(URL providerUrl) {
+        // 合并url参数。顺序为：override（动态配置）>Consumer（xml/注解 配置，ReferenceConfig）>Provider（服务提供者端配置）
+
+        // 使用Consumer（xml/注解 配置）覆盖 Provider（服务提供者端配置）
         providerUrl = ClusterUtils.mergeUrl(providerUrl, queryMap); // Merge the consumer side parameters
 
+        // 使用动态配置更新url
         providerUrl = overrideWithConfigurator(providerUrl);
 
+        // 不检查连接是否成功，始终创建Invoker
         providerUrl = providerUrl.addParameter(Constants.CHECK_KEY, String.valueOf(false)); // Do not check whether the connection is successful or not, always create Invoker!
 
         // fix issue#9922
+        // 合并到overrideDirectoryUrl的providerUrl需要去掉tag参数
         Map<String, String> providerSideParameters = new HashMap<>(providerUrl.getParameters());
         providerSideParameters.remove(CommonConstants.TAG_KEY);
         // The combination of directoryUrl and override is at the end of notify, which can't be handled here
+        // directoryUrl和override的合并位于notify的末尾，此处无法处理
+
+        // 合并providerUrl的参数
         this.overrideDirectoryUrl = this.overrideDirectoryUrl.addParametersIfAbsent(providerSideParameters); // Merge the provider side parameters
 
+        // 在dubbo协议下，如果providerUrl的path属性为空，将directoryUrl的interface参数值赋值给providerUrl的path属性
+        // providerUrl的path属性是服务接口类全限定名
         if ((providerUrl.getPath() == null || providerUrl.getPath()
                 .length() == 0) && DUBBO_PROTOCOL.equals(providerUrl.getProtocol())) { // Compatible version 1.0
             //fix by tony.chenl DUBBO-44
@@ -429,12 +469,17 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
 
     private URL overrideWithConfigurator(URL providerUrl) {
         // override url with configurator from "override://" URL for dubbo 2.6 and before
+        // 使用来自override协议的URL(“override://”)的configurator来覆盖url在dubbo 2.6及之前的版本中
         providerUrl = overrideWithConfigurators(this.configurators, providerUrl);
 
         // override url with configurator from configurator from "app-name.configurators"
+
+        // 使用配置中心应用类型动态配置（APP_NAME.configurators）更新url
         providerUrl = overrideWithConfigurators(CONSUMER_CONFIGURATION_LISTENER.getConfigurators(), providerUrl);
 
         // override url with configurator from configurators from "service-name.configurators"
+
+        // 使用配置中心服务类型动态配置（SERVICE_NAME.configurators）更新url
         if (referenceConfigurationListener != null) {
             providerUrl = overrideWithConfigurators(referenceConfigurationListener.getConfigurators(), providerUrl);
         }
