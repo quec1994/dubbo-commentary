@@ -69,7 +69,7 @@ public abstract class DubboBeanUtils {
         // AbstractAnnotationBeanPostProcessor 继承了 InstantiationAwareBeanPostProcessorAdapter,
         // InstantiationAwareBeanPostProcessorAdapter 实现了 InstantiationAwareBeanPostProcessor 接口
         // 所以Spring在启动时，在对属性进行注入时会调用 AbstractAnnotationBeanPostProcessor 类中的 postProcessPropertyValues 方法
-        // 在这个过程中会按照@Reference注解的信息去生成一个RefrenceBean对象
+        // 在这个过程中会按照@DubboReference注解的信息去生成一个RefrenceBean对象
         registerInfrastructureBean(registry, ReferenceAnnotationBeanPostProcessor.BEAN_NAME,
                 ReferenceAnnotationBeanPostProcessor.class);
 

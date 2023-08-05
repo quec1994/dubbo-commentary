@@ -65,7 +65,11 @@ public class RouterChain<T> {
                 .map(factory -> factory.getRouter(url))
                 .collect(Collectors.toList());
 
-        // 把routers按priority进行排序
+        // 把routers按priority从小到大的顺序进行排序
+        // 0 = {MockInvokersSelector@3930}  // mock路由，priority = -100
+        // 1 = {TagRouter@3931}             // 标签路由，priority = 100
+        // 2 = {AppRouter@3933}             // 应用条件路由，priority = 150
+        // 3 = {ServiceRouter@3932}         // 服务条件路由，priority = 140
         initWithRouters(routers);
     }
 
@@ -118,6 +122,7 @@ public class RouterChain<T> {
      * Notify whenever addresses in registry change.
      */
     public void setInvokers(List<Invoker<T>> invokers) {
+        // 第一时间将注册表中的初始地址通知路由器链。每当注册表中的地址更改时通知。
         this.invokers = (invokers == null ? Collections.emptyList() : invokers);
         routers.forEach(router -> router.notify(this.invokers));
     }

@@ -214,9 +214,12 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                 invokerUrls = new ArrayList<>();
             }
             if (invokerUrls.isEmpty() && this.cachedInvokerUrls != null) {
+                // 使用缓存的旧的服务提供者URL
+                // 比如在动态配置变更时，没有服务提供者的URL传入
                 invokerUrls.addAll(this.cachedInvokerUrls);
             } else {
                 this.cachedInvokerUrls = new HashSet<>();
+                // 缓存原始的providerUrl
                 // 缓存invokerUrls，便于比较
                 this.cachedInvokerUrls.addAll(invokerUrls);//Cached invoker urls, convenient for comparison
             }
@@ -249,7 +252,9 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
             List<Invoker<T>> newInvokers = Collections.unmodifiableList(new ArrayList<>(newUrlInvokerMap.values()));
             // pre-route and build cache, notice that route cache should build on original Invoker list.
             // toMergeMethodInvokerMap() will wrap some invokers having different groups, those wrapped invokers not should be routed.
-            // 得到了所引入的服务Invoker之后，把它们设置到路由链中去，在调用时使用，并且会调用TagRouter的notify方法
+
+            // 得到了所引入的服务Invoker之后，把它们设置到路由链中去，在调用时使用
+            // 实际上这里只有TagRouter的notify方法有用
             routerChain.setInvokers(newInvokers);
             this.invokers = multiGroup ? toMergeInvokerList(newInvokers) : newInvokers;
             this.urlInvokerMap = newUrlInvokerMap;
@@ -655,6 +660,8 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
         @Override
         protected void notifyOverrides() {
             // to notify configurator/router changes
+            // 会调用该服务对应的RegistryDirectory的refreshOverrideAndInvoker()方法
+            // 表示刷新该服务对应的Invoker
             directory.refreshOverrideAndInvoker(Collections.emptyList());
         }
     }
@@ -676,6 +683,8 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
 
         @Override
         protected void notifyOverrides() {
+            // 会调用当前消费者应用中的所有RegistryDirectory的refreshOverrideAndInvoker()方法
+            // 表示刷新消费者应用中引入的每个服务对应的Invoker
             listeners.forEach(listener -> listener.refreshOverrideAndInvoker(Collections.emptyList()));
         }
     }

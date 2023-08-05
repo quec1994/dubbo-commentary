@@ -24,6 +24,7 @@ import org.apache.dubbo.rpc.cluster.governance.GovernanceRuleRepository;
 public abstract class AbstractRouter implements Router {
     protected int priority = DEFAULT_PRIORITY;
     protected boolean force = false;
+    // 注册到注册中心的消费者url
     protected URL url;
 
     protected GovernanceRuleRepository ruleRepository;

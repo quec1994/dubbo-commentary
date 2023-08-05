@@ -43,7 +43,9 @@ import java.util.stream.Collectors;
 public class TagRouterRule extends AbstractRouterRule {
     private List<Tag> tags;
 
+    // 地址和tag名称的映射
     private Map<String, List<String>> addressToTagnames = new HashMap<>();
+    // tag名称和地址的映射
     private Map<String, List<String>> tagnameToAddresses = new HashMap<>();
 
     public void init() {

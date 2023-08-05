@@ -40,7 +40,7 @@ public class NettyTransporter implements Transporter {
     public Client connect(URL url, ChannelHandler handler) throws RemotingException {
         // handler：DecodeHandler->HeaderExchangeHandler->requestHandler
 
-        // 生成一个NettyClient, 这个内部会去进行链接
+        // 生成一个NettyClient，在构造NettyClient的过程中，会去初始化Netty的客户端，然后连接Server端，建立一个Socket连接
         return new NettyClient(url, handler);
         // NettyClient.handler--->MultiMessageHandler->HeartbeatHandler->AllChannelHandler->DecodeHandler->HeaderExchangeHandler->requestHandler
     }

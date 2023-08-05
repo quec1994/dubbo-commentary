@@ -126,7 +126,13 @@ public abstract class ListenableRouter extends AbstractRouter implements Configu
         }
         // 应用名 + ".condition-router"，或 服务名 + ".condition-router"
         String routerKey = ruleKey + RULE_SUFFIX;
+        // dubbo-demo-annotation-consumer.condition-router
+        // org.apache.dubbo.demo.DemoService::.condition-router
+
         // 绑定一个监听器去监听配置中心routerKey对应的节点，当前类ListenableRouter就是一个监听器
+        // 应用路由规则监听地址：/dubbo/config/dubbo/org.apache.dubbo.demo.DemoService::.condition-router
+        // 服务路由规则监听地址：/dubbo/config/dubbo/dubbo-demo-annotation-consumer.condition-router
+
         ruleRepository.addListener(routerKey, this);
         // 绑定完监听器后，主动的从配置中心获取一下当前应用或服务的对应的路由规则配置
         String rule = ruleRepository.getRule(routerKey, DynamicConfiguration.DEFAULT_GROUP);

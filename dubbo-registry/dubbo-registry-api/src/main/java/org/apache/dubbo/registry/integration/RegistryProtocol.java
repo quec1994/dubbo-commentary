@@ -635,8 +635,8 @@ public class RegistryProtocol implements Protocol {
         directory.buildRouterChain(urlToRegistry);
 
         // 服务目录需要订阅的几个路径
-        // 当前应用所对应的动态配置目录：/dubbo/config/dubbo/dubbo-demo-consumer-application.configurators
-        // 当前所引入的服务的动态配置目录：/dubbo/config/dubbo/org.apache.dubbo.demo.DemoService:1.1.1:g1.configurators
+        // 当前应用所对应的动态配置目录：/dubbo/config/dubbo/dubbo-demo-annotation-consumer.configurators
+        // 当前所引入的服务的动态配置目录：/dubbo/config/dubbo/org.apache.dubbo.demo.DemoService::.configurators
 
         // 当前所引入的服务的提供者目录：/dubbo/org.apache.dubbo.demo.DemoService/providers
         // 当前所引入的服务的老版本动态配置目录：/dubbo/org.apache.dubbo.demo.DemoService/configurators
