@@ -76,7 +76,7 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
 
         this.directory = directory;
         //sticky: invoker.isAvailable() should always be checked before using when availablecheck is true.
-        // 当availalecheck为true时，invoker.isAvailable（）应始终在使用前进行检查。
+        // 当availalecheck为true时，invoker.isAvailable()应始终在使用前进行检查。
         this.availablecheck = url.getParameter(CLUSTER_AVAILABLE_CHECK_KEY, DEFAULT_CLUSTER_AVAILABLE_CHECK);
     }
 
@@ -137,12 +137,19 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
      */
     protected Invoker<T> select(LoadBalance loadbalance, Invocation invocation,
                                 List<Invoker<T>> invokers, List<Invoker<T>> selected) throws RpcException {
+        /*
+         * 使用负载均衡策略选择invoker
+         * a) 首先，使用负载均衡选择一个invoker。如果此invoker在先前选择的列表中，或者如果此invoker不可用，
+         *    则继续步骤b（重新选择），否则返回第一个被选择的invoker
+         * b) 重选，重选的验证规则：已选 > 可用。该规则保证所选invoker在先前选择的列表中的机会最小，也保证该调用程序可用。
+         */
 
         if (CollectionUtils.isEmpty(invokers)) {
             return null;
         }
         String methodName = invocation == null ? StringUtils.EMPTY_STRING : invocation.getMethodName();
 
+        // 是否为集群启用粘性策略
         boolean sticky = invokers.get(0).getUrl()
                 .getMethodParameter(methodName, CLUSTER_STICKY_KEY, DEFAULT_CLUSTER_STICKY);
 
@@ -153,10 +160,12 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
         //ignore concurrency problem
         if (sticky && stickyInvoker != null && (selected == null || !selected.contains(stickyInvoker))) {
             if (availablecheck && stickyInvoker.isAvailable()) {
+                // 启用粘性策略，并且之前选择invoker可用，直接返回之前选择的
                 return stickyInvoker;
             }
         }
 
+        // 根据负载均衡策略筛选
         Invoker<T> invoker = doSelect(loadbalance, invocation, invokers, selected);
 
         if (sticky) {
@@ -174,20 +183,25 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
         if (invokers.size() == 1) {
             return invokers.get(0);
         }
+        // 使用负载均衡策略做筛选
         Invoker<T> invoker = loadbalance.select(invokers, getUrl(), invocation);
 
         //If the `invoker` is in the  `selected` or invoker is unavailable && availablecheck is true, reselect.
+        // 如果“invoker”在“selected”中，或者invoker不可用&&availablecheck为true，重新选择。
         if ((selected != null && selected.contains(invoker))
                 || (!invoker.isAvailable() && getUrl() != null && availablecheck)) {
             try {
+                // 重新选择一个invoker
                 Invoker<T> rInvoker = reselect(loadbalance, invocation, invokers, selected, availablecheck);
                 if (rInvoker != null) {
                     invoker = rInvoker;
                 } else {
                     //Check the index of current selected invoker, if it's not the last one, choose the one at index+1.
+                    // 检查当前所选invoker的索引，如果不是最后一个，选择索引+1处的invoker。
                     int index = invokers.indexOf(invoker);
                     try {
                         //Avoid collision
+                        // 避免碰撞
                         invoker = invokers.get((index + 1) % invokers.size());
                     } catch (Exception e) {
                         logger.warn(e.getMessage() + " may because invokers list dynamic change, ignore.", e);
@@ -214,27 +228,37 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
      */
     private Invoker<T> reselect(LoadBalance loadbalance, Invocation invocation,
                                 List<Invoker<T>> invokers, List<Invoker<T>> selected, boolean availablecheck) throws RpcException {
+        /*
+         * 重新选择，首先使用不在“selected”中的invoker，如果所有invoker都在“selected”中，只好使用负载均衡策略选择一个可用的调用程序。
+         */
 
         //Allocating one in advance, this list is certain to be used.
+        // 提前分配一个，这个列表肯定会被使用。
         List<Invoker<T>> reselectInvokers = new ArrayList<>(
                 invokers.size() > 1 ? (invokers.size() - 1) : invokers.size());
 
         // First, try picking a invoker not in `selected`.
+        // 首先，尝试选择不在“selected”中的invoker。
         for (Invoker<T> invoker : invokers) {
             if (availablecheck && !invoker.isAvailable()) {
+                // invoker 不可使用
                 continue;
             }
 
             if (selected == null || !selected.contains(invoker)) {
+                // invoker 不在 selected 中
                 reselectInvokers.add(invoker);
             }
         }
 
         if (!reselectInvokers.isEmpty()) {
+            // 使用负载均衡策略从未被选择过的invoker中选择一个可用的调用程序
             return loadbalance.select(reselectInvokers, getUrl(), invocation);
         }
 
         // Just pick an available invoker using loadbalance policy
+
+        // 从已选择的invoker中筛出可使用的invoker
         if (selected != null) {
             for (Invoker<T> invoker : selected) {
                 if ((invoker.isAvailable()) // available first
@@ -244,6 +268,7 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
             }
         }
         if (!reselectInvokers.isEmpty()) {
+            // 所有invoker都在“selected”中，只好使用负载均衡策略选择一个可用的调用程序
             return loadbalance.select(reselectInvokers, getUrl(), invocation);
         }
 
@@ -252,17 +277,24 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
 
     @Override
     public Result invoke(final Invocation invocation) throws RpcException {
+        // 校验invoker是否已销毁
         checkWhetherDestroyed();
 
         // binding attachments into invocation.
+        // 把RpcContext中设置的Attachments添加到invocation对象上
         Map<String, Object> contextAttachments = RpcContext.getContext().getObjectAttachments();
         if (contextAttachments != null && contextAttachments.size() != 0) {
             ((RpcInvocation) invocation).addObjectAttachments(contextAttachments);
         }
 
+        // 获取服务目录上的服务Invoker，在获取时需要先通过路由链的筛选
         List<Invoker<T>> invokers = list(invocation);
+        // 获取负载均衡策略
         LoadBalance loadbalance = initLoadBalance(invokers, invocation);
+        // 异步操作的话添加调用id
         RpcUtils.attachInvocationIdIfAsync(getUrl(), invocation);
+        // 根据负载均衡策略选出一个invoker，
+        // 然后使用选出来的invoker继续执行
         return doInvoke(invocation, invokers, loadbalance);
     }
 
@@ -281,6 +313,7 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
 
     protected void checkInvokers(List<Invoker<T>> invokers, Invocation invocation) {
         if (CollectionUtils.isEmpty(invokers)) {
+            // invokers为空，没有提供者，直接往外抛异常
             throw new RpcException(RpcException.NO_INVOKER_AVAILABLE_AFTER_FILTER, "Failed to invoke the method "
                     + invocation.getMethodName() + " in the service " + getInterface().getName()
                     + ". No provider available for the service " + directory.getConsumerUrl().getServiceKey()
@@ -295,6 +328,7 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
                                        LoadBalance loadbalance) throws RpcException;
 
     protected List<Invoker<T>> list(Invocation invocation) throws RpcException {
+        // 获取服务目录上的服务Invoker，在获取时需要先通过路由链的筛选
         return directory.list(invocation);
     }
 
@@ -310,10 +344,13 @@ public abstract class AbstractClusterInvoker<T> implements ClusterInvoker<T> {
      * @return LoadBalance instance. if not need init, return null.
      */
     protected LoadBalance initLoadBalance(List<Invoker<T>> invokers, Invocation invocation) {
+        // 初始化负载均衡
         if (CollectionUtils.isNotEmpty(invokers)) {
+            // 如果invokers不为空，则根据第一个invoker的url初始化
             return ExtensionLoader.getExtensionLoader(LoadBalance.class).getExtension(invokers.get(0).getUrl()
                     .getMethodParameter(RpcUtils.getMethodName(invocation), LOADBALANCE_KEY, DEFAULT_LOADBALANCE));
         } else {
+            // 如果invokes为空，那么初始化默认的LoadBalance（RandomLoadBalance）
             return ExtensionLoader.getExtensionLoader(LoadBalance.class).getExtension(DEFAULT_LOADBALANCE);
         }
     }

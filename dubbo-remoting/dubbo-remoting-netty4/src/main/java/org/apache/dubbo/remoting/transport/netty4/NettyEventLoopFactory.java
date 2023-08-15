@@ -36,6 +36,7 @@ import java.util.concurrent.ThreadFactory;
 public class NettyEventLoopFactory {
     public static EventLoopGroup eventLoopGroup(int threads, String threadFactoryName) {
         ThreadFactory threadFactory = new DefaultThreadFactory(threadFactoryName, true);
+        // netty事件循环组是否基于linux的epoll功能工作
         return shouldEpoll() ? new EpollEventLoopGroup(threads, threadFactory) :
                 new NioEventLoopGroup(threads, threadFactory);
     }
@@ -49,6 +50,8 @@ public class NettyEventLoopFactory {
     }
 
     private static boolean shouldEpoll() {
+        // 是否使用linux的epoll功能，默认不使用
+
         Configuration configuration = ApplicationModel.getEnvironment().getConfiguration();
         if (configuration.getBoolean("netty.epoll.enable", false)) {
             String osName = configuration.getString("os.name");

@@ -68,6 +68,7 @@ public class ZoneAwareClusterInvoker<T> extends AbstractClusterInvoker<T> {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public Result doInvoke(Invocation invocation, final List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         // First, pick the invoker (XXXClusterInvoker) that comes from the local registry, distinguish by a 'preferred' key.
+        // 首先，选择来自本地注册表的invoker（XXXClusterInvoker），通过“preferred”键进行区分。
         for (Invoker<T> invoker : invokers) {
             ClusterInvoker<T> clusterInvoker = (ClusterInvoker<T>) invoker;
             if (clusterInvoker.isAvailable() && clusterInvoker.getRegistryUrl()
@@ -77,6 +78,7 @@ public class ZoneAwareClusterInvoker<T> extends AbstractClusterInvoker<T> {
         }
 
         // providers in the registry with the same zone
+        // 在同一个区域的注册表中的提供提供者
         String zone = invocation.getAttachment(REGISTRY_ZONE);
         if (StringUtils.isNotEmpty(zone)) {
             for (Invoker<T> invoker : invokers) {
@@ -95,12 +97,14 @@ public class ZoneAwareClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
 
         // load balance among all registries, with registry weight count in.
+        // 在所有注册表之间做负载平衡，计算时包含注册表权重。
         Invoker<T> balancedInvoker = select(loadBalanceAmongRegistries, invocation, invokers, null);
         if (balancedInvoker.isAvailable()) {
             return balancedInvoker.invoke(invocation);
         }
 
         // If none of the invokers has a preferred signal or is picked by the loadbalancer, pick the first one available.
+        // 如果没有一个invoker具有首选信号或被负载均衡器选中，请选择第一个可用的调用程序。
         for (Invoker<T> invoker : invokers) {
             ClusterInvoker<T> clusterInvoker = (ClusterInvoker<T>) invoker;
             if (clusterInvoker.isAvailable()) {
@@ -109,6 +113,7 @@ public class ZoneAwareClusterInvoker<T> extends AbstractClusterInvoker<T> {
         }
 
         //if none available,just pick one
+        // 如果没有可用的，就选第一个
         return invokers.get(0).invoke(invocation);
     }
 

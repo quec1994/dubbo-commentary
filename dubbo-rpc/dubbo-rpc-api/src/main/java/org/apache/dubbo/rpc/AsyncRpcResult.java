@@ -45,6 +45,17 @@ import static org.apache.dubbo.common.utils.ReflectUtils.defaultReturn;
  * AsyncRpcResult does not contain any concrete value (except the underlying value bring by CompletableFuture), consider it as a status transfer node.
  * {@link #getValue()} and {@link #getException()} are all inherited from {@link Result} interface, implementing them are mainly
  * for compatibility consideration. Because many legacy {@link Filter} implementation are most possibly to call getValue directly.
+ *
+ * 这个类表示一个未完成的RPC调用，它将保存该调用的一些上下文信息，例如RpcContext和Invocation，
+ * 这样当调用完成并返回结果时，它可以保证所有上下文都恢复为与调用任何回调之前进行调用时相同。
+ * <p>
+ * TODO 保留对Invocation的引用是否合理甚至正确？
+ * <p>
+ * 由于{@link Result}实现了CompletionStage，{@link AsyncRpcResult}允许您轻松构建异步筛选器链，其状态将完全由基础RPC调用的状态驱动。
+ * <p>
+ * AsyncRpcResult不包含任何具体值（CompletableFuture带来的基础值除外），请将其视为状态传输节点。
+ * {@link #getValue()} 和 {@link #getException()}都继承自 {@link Result}接口，实现它们主要是出于兼容性考虑。
+ * 因为许多遗留的{@link Filter}实现最有可能直接调用getValue。
  */
 public class AsyncRpcResult implements Result {
     private static final Logger logger = LoggerFactory.getLogger(AsyncRpcResult.class);
@@ -306,6 +317,7 @@ public class AsyncRpcResult implements Result {
     }
 
     public static AsyncRpcResult newDefaultAsyncResult(Invocation invocation) {
+        // 生成一个默认的正常返回值，value=null，exception=null
         return newDefaultAsyncResult(null, null, invocation);
     }
 
@@ -325,6 +337,7 @@ public class AsyncRpcResult implements Result {
         } else {
             result.setValue(value);
         }
+        // 直接设置异步调用完成
         future.complete(result);
         return new AsyncRpcResult(future, invocation);
     }

@@ -192,6 +192,7 @@ public abstract class DynamicDirectory<T> extends AbstractDirectory<T> implement
         List<Invoker<T>> invokers = null;
         try {
             // Get invokers from cache, only runtime routers will be executed.
+            // 调用路由链筛选出适合的服务Invoker
             invokers = routerChain.route(getConsumerUrl(), invocation);
         } catch (Throwable t) {
             logger.error("Failed to execute router: " + getUrl() + ", cause: " + t.getMessage(), t);

@@ -46,6 +46,7 @@ public interface Constants {
 
     /**
      * To decide whether to enable sticky strategy for cluster
+     * 决定是否为集群启用粘性策略
      */
     String CLUSTER_STICKY_KEY = "sticky";
 

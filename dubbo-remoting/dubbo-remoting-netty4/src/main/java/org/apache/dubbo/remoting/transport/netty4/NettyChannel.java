@@ -16,6 +16,8 @@
  */
 package org.apache.dubbo.remoting.transport.netty4;
 
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import org.apache.dubbo.common.URL;
 import org.apache.dubbo.common.logger.Logger;
 import org.apache.dubbo.common.logger.LoggerFactory;
@@ -23,9 +25,6 @@ import org.apache.dubbo.remoting.ChannelHandler;
 import org.apache.dubbo.remoting.RemotingException;
 import org.apache.dubbo.remoting.transport.AbstractChannel;
 import org.apache.dubbo.remoting.utils.PayloadDropper;
-
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
 
 import java.net.InetSocketAddress;
 import java.util.Map;
@@ -81,9 +80,13 @@ final class NettyChannel extends AbstractChannel {
      * @return
      */
     static NettyChannel getOrAddChannel(Channel ch, URL url, ChannelHandler handler) {
+        /* 通过netty隧道获取隧道缓存中的dubbo隧道。如果隧道缓存中不存在dubbo隧道，则创建dubbo隧道并将netty隧道放入其中。 */
+
+        // ch - netty隧道
         if (ch == null) {
             return null;
         }
+        // ret - dubbo隧道
         NettyChannel ret = CHANNEL_MAP.get(ch);
         if (ret == null) {
             NettyChannel nettyChannel = new NettyChannel(ch, url, handler);
@@ -154,19 +157,24 @@ final class NettyChannel extends AbstractChannel {
     @Override
     public void send(Object message, boolean sent) throws RemotingException {
         // whether the channel is closed
+        // 隧道是否被关闭
         super.send(message, sent);
 
         boolean success = true;
         int timeout = 0;
         try {
             ChannelFuture future = channel.writeAndFlush(message);
+            // sent="true" 等待消息发出完成，消息发送失败将抛出异常。
+            // sent="false" 不等待消息发出完成，将消息放入 IO 队列，即刻返回。
             if (sent) {
                 // wait timeout ms
+                // 等待超时 ms
                 timeout = getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
                 success = future.await(timeout);
             }
             Throwable cause = future.cause();
             if (cause != null) {
+                // 消息发送失败抛出异常
                 throw cause;
             }
         } catch (Throwable e) {

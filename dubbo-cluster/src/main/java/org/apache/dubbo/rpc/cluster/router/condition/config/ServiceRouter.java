@@ -31,6 +31,7 @@ public class ServiceRouter extends ListenableRouter {
 
     public ServiceRouter(URL url) {
         // 得到服务名
+        // 服务路由规则监听地址：/dubbo/config/dubbo/dubbo-demo-annotation-consumer.condition-router
         super(url, DynamicConfiguration.getRuleKey(url));
         this.priority = SERVICE_ROUTER_DEFAULT_PRIORITY;
     }

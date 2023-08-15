@@ -375,6 +375,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
             urls.clear();
             if (url != null && url.length() > 0) { // user specified URL, could be peer-to-peer address, or register center's address.
                 // @DubboReference中指定了url属性
+                // 用户指定的URL，可以是点对点地址，也可以是注册中心的地址。
 
                 // 用;号切割
                 String[] us = SEMICOLON_SPLIT_PATTERN.split(url);
@@ -447,8 +448,11 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                 invoker = REF_PROTOCOL.refer(interfaceClass, urls.get(0));
                 // MigrationInvoker->MockClusterInvoker->chain(AbstractCluster.InterceptorInvokerNode)->FailoverClusterInvoker->FailoverClusterInvoker.directory(RegistryDirectory)
                 // RegistryDirectory.invokers->RegistryDirectory.InvokerDelegate->chain(FilterNode)->ListenerInvokerWrapper->AsyncToSyncInvoker->DubboInvoker
+                // DubboInvoker.clients-->ReferenceCountExchangeClient->HeaderExchangeClient->NettyClient
+                // NettyClient.handler--->MultiMessageHandler->HeartbeatHandler->AllChannelHandler->DecodeHandler->HeaderExchangeHandler->DubboProtocol.requestHandler
             } else {
                 // 配置了多个url
+                // urls里面，可能是点对点地址，也可能是注册中心的地址。
 
                 List<Invoker<?>> invokers = new ArrayList<Invoker<?>>();
                 URL registryURL = null;
@@ -478,8 +482,9 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
                     String cluster = registryURL.getParameter(CLUSTER_KEY, ZoneAwareCluster.NAME);
                     // StaticDirectory表示静态服务目录，里面的invokers是不会变的, 生成一个RegistryAwareCluster
                     // The invoker wrap sequence would be: ZoneAwareClusterInvoker(StaticDirectory) -> FailoverClusterInvoker(RegistryDirectory, routing happens here) -> Invoker
-                    // ZoneAwareClusterInvoker -> FailoverClusterInvoker -> Invoker
                     invoker = Cluster.getCluster(cluster, false).join(new StaticDirectory(registryURL, invokers));
+                    // chain(AbstractCluster.InterceptorInvokerNode)->ZoneAwareClusterInvoker->ZoneAwareClusterInvoker.directory(StaticDirectory)
+                    // StaticDirectory.invokers->MigrationInvoker->MockClusterInvoker->chain(AbstractCluster.InterceptorInvokerNode)->FailoverClusterInvoker->FailoverClusterInvoker.directory(RegistryDirectory)
                 } else { // not a registry url, must be direct invoke.
                     // 如果urls中不存在注册中心URL，那就只有多个直连URL
                     // 如果invokers中第一个invoker的URL没有配置集群容错，则把所有invoker默认整合为ZoneAwareClusterInvoker

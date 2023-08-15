@@ -522,7 +522,8 @@ public class DubboBootstrap {
 
         // 从配置中心获取配置，包括应用配置和全局配置
         // 把获取到的配置放入到Environment中的externalConfigurationMap和appExternalConfigurationMap中
-        // 并刷新所有的XxConfig的属性（除开ServiceConfig），刷新的意思就是将配置中心的配置覆盖调用XxConfig中的属性
+        // 并刷新所有的XxConfig的属性（除开ServiceConfig和ReferenceConfig），
+        // 刷新的意思就是将配置中心等地方的配置根据优先级覆盖掉或者是补全XxConfig中的属性
         startConfigCenter();
 
         // 初始化配置中心里配置的RegistryConfig和ProtocolConfig
@@ -625,12 +626,14 @@ public class DubboBootstrap {
         if (CollectionUtils.isNotEmpty(configCenters)) {
             CompositeDynamicConfiguration compositeDynamicConfiguration = new CompositeDynamicConfiguration();
             for (ConfigCenterConfig configCenter : configCenters) {
-                // 属性更新后，从远程配置中心获取数据(应用配置，全局配置)
-                compositeDynamicConfiguration.addConfiguration(prepareEnvironment(configCenter));
+                compositeDynamicConfiguration.addConfiguration(
+                        // 属性更新后，从远程配置中心获取数据(应用配置，全局配置)
+                        prepareEnvironment(configCenter));
             }
+            // 给dubbo环境中放入动态配置中心
             environment.setDynamicConfiguration(compositeDynamicConfiguration);
         }
-        // 从配置中心取到配置数据后，刷新所有的XxConfig中的属性，除开ServiceConfig
+        // 从配置中心取到配置数据后，刷新所有的XxConfig中的属性，除开ServiceConfig和ReferenceConfig
         configManager.refreshAll();
     }
 
@@ -1055,15 +1058,19 @@ public class DubboBootstrap {
             }
             try {
                 // 根据配置中心的配置设置是否是配置中心的配置优先
-                // 如果 configCenter 没有配置，是由 registry 转换过来的，那么 highestPriority 的值是 false
+                // 如果configCenter是由 registry 转换过来的，也就是没有配置ConfigCenterConfig，那么 highestPriority 的值是 false
                 environment.setConfigCenterFirst(configCenter.isHighestPriority());
-                // 把获取到的配置放入到Environment中的externalConfigurationMap
+
+                // Environment初始化的时候会将 externalConfigurationMap和externalConfiguration、
+                // appExternalConfigurationMap和appExternalConfigurationMap 做关联
+
+                // 把获取到的全局配置放入到Environment中的externalConfigurationMap
                 Map<String, String> globalRemoteProperties = parseProperties(configContent);
                 if (CollectionUtils.isEmptyMap(globalRemoteProperties)) {
                     logger.info("No global configuration in config center");
                 }
                 environment.updateExternalConfigurationMap(globalRemoteProperties);
-                // 把获取到的配置放入到Environment中的appExternalConfigurationMap中
+                // 把获取到的应用配置放入到Environment中的appExternalConfigurationMap中
                 Map<String, String> appRemoteProperties = parseProperties(appConfigContent);
                 if (CollectionUtils.isEmptyMap(appRemoteProperties)) {
                     logger.info("No application level configuration in config center");
@@ -1431,7 +1438,8 @@ public class DubboBootstrap {
 
     /**
      * Try reset dubbo status for new instance.
-     * @deprecated  For testing purposes only
+     *
+     * @deprecated For testing purposes only
      */
     @Deprecated
     public static void reset() {
@@ -1440,6 +1448,7 @@ public class DubboBootstrap {
 
     /**
      * Try reset dubbo status for new instance.
+     *
      * @deprecated For testing purposes only
      */
     @Deprecated

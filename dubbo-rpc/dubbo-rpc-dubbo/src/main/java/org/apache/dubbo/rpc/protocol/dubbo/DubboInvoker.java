@@ -88,26 +88,39 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         inv.setAttachment(PATH_KEY, getUrl().getPath());
         inv.setAttachment(VERSION_KEY, version);
 
+        // 选择本次调用该使用哪个client
         ExchangeClient currentClient;
         if (clients.length == 1) {
             currentClient = clients[0];
         } else {
+            // 轮询使用clients
             currentClient = clients[index.getAndIncrement() % clients.length];
         }
         try {
+            // isOneway 表示是否单向请求，默认为false
             boolean isOneway = RpcUtils.isOneway(getUrl(), invocation);
+            // 计算超时时间
             int timeout = calculateTimeout(invocation, methodName);
             invocation.put(TIMEOUT_KEY, timeout);
             if (isOneway) {
                 boolean isSent = getUrl().getMethodParameter(methodName, Constants.SENT_KEY, false);
+                // 发送远端方法调用数据
                 currentClient.send(inv, isSent);
+                // 只发送数据，不等待远端方法返回结果，直接生成一个默认的结果，value=null
                 return AsyncRpcResult.newDefaultAsyncResult(invocation);
             } else {
+                // 获取远端方法数据返回的时候的执行器
                 ExecutorService executor = getCallbackExecutor(getUrl(), inv);
+
+                // 异步去请求，得到一个CompletableFuture，这里并不会阻塞
                 CompletableFuture<AppResponse> appResponseFuture =
                         currentClient.request(inv, timeout, executor).thenApply(obj -> (AppResponse) obj);
+
                 // save for 2.6.x compatibility, for example, TraceFilter in Zipkin uses com.alibaba.xxx.FutureAdapter
                 FutureContext.getContext().setCompatibleFuture(appResponseFuture);
+
+                // AsyncRpcResult只是一个包装类，appResponseFuture才是真正的远端方法返回值容器
+                // 如果要达到阻塞的效果在外层使用result去控制
                 AsyncRpcResult result = new AsyncRpcResult(appResponseFuture, inv);
                 result.setExecutor(executor);
                 return result;
@@ -187,13 +200,18 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
         Object countdown = RpcContext.getContext().get(TIME_COUNTDOWN_KEY);
         int timeout = DEFAULT_TIMEOUT;
         if (countdown == null) {
+            // 获取超时时间
             timeout = (int) RpcUtils.getTimeout(getUrl(), methodName, RpcContext.getContext(), DEFAULT_TIMEOUT);
             if (getUrl().getParameter(ENABLE_TIMEOUT_COUNTDOWN_KEY, false)) {
+                // 将超时时间传递给远程服务器
                 invocation.setObjectAttachment(TIMEOUT_ATTACHMENT_KEY, timeout); // pass timeout to remote server
             }
         } else {
+            // 调用参数的附件中带了倒计时对象
             TimeoutCountDown timeoutCountDown = (TimeoutCountDown) countdown;
+            // 获取倒计时剩余时间
             timeout = (int) timeoutCountDown.timeRemaining(TimeUnit.MILLISECONDS);
+            // 将超时时间传递给远程服务器，可用于动态覆盖远端方法超时时间
             invocation.setObjectAttachment(TIMEOUT_ATTACHMENT_KEY, timeout);// pass timeout to remote server
         }
         return timeout;

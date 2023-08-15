@@ -36,6 +36,10 @@ import java.util.concurrent.TimeoutException;
  * Tasks submitted to this executor through {@link #execute(Runnable)} will not get scheduled to a specific thread, though normal executors always do the schedule.
  * Those tasks are stored in a blocking queue and will only be executed when a thread calls {@link #waitAndDrain()}, the thread executing the task
  * is exactly the same as the one calling waitAndDrain.
+ * <p>
+ * 这个Executor和其他普通Executor之间最重要的区别是，这个不管理任何线程。
+ * 通过{@link #execute(Runnable)} 提交给该Executor的任务不会被调度到特定的线程，尽管普通的Executor总是执行调度。
+ * 这些任务存储在阻塞队列中，只有当线程调用 {@link #waitAndDrain()}时才会执行，执行任务的线程就是调用waitAndDrain方法的线程。
  */
 public class ThreadlessExecutor extends AbstractExecutorService {
     private static final Logger logger = LoggerFactory.getLogger(ThreadlessExecutor.class.getName());
@@ -46,13 +50,19 @@ public class ThreadlessExecutor extends AbstractExecutorService {
 
     private CompletableFuture<?> waitingFuture;
 
+    // 执行器是否执行过一轮
     private boolean finished = false;
 
+    // 是否在等待执行器执行队列中的任务
     private volatile boolean waiting = true;
 
     private final Object lock = new Object();
 
     public ThreadlessExecutor(ExecutorService sharedExecutor) {
+        // 无线程执行器，作用是将异步转同步执行
+        // 进入执行器的任务存储在阻塞队列中，只有当线程调用 waitAndDrain()时才会执行，执行任务的线程就是调用waitAndDrain方法的线程
+        // 一次性执行器，当执行过一轮之后，之后进入的任务会使用sharedExecutor去执行
+
         this.sharedExecutor = sharedExecutor;
     }
 
@@ -127,6 +137,8 @@ public class ThreadlessExecutor extends AbstractExecutorService {
     /**
      * If the calling thread is still waiting for a callback task, add the task into the blocking queue to wait for schedule.
      * Otherwise, submit to shared callback executor directly.
+     * <p>
+     * 如果调用线程仍在等待回调任务，将该任务添加到阻塞队列中以等待调度。否则，直接提交给共享回调执行器。
      *
      * @param runnable
      */

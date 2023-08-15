@@ -630,6 +630,10 @@ public class RegistryProtocol implements Protocol {
             registry.register(directory.getRegisteredConsumerUrl());
         }
 
+        // 标签路由规则监听地址：/dubbo/config/dubbo/dubbo-demo-annotation-provider.tag-router
+        // 服务路由规则监听地址：/dubbo/config/dubbo/dubbo-demo-annotation-consumer.condition-router
+        // 应用路由规则监听地址：/dubbo/config/dubbo/org.apache.dubbo.demo.DemoService::.condition-router
+
         // 构造路由链，路由链会在引入服务时按路由条件进行过滤
         // 路由链是动态服务目录中的一个属性，通过路由链可以过滤某些服务提供者
         directory.buildRouterChain(urlToRegistry);
@@ -644,8 +648,8 @@ public class RegistryProtocol implements Protocol {
         directory.subscribe(toSubscribeUrl(urlToRegistry));
 
         // 会先经过MockClusterWrapper，在MockClusterWrapper里利用传进来的cluster，join得到invoker
-        // MockClusterInvoker->chain#AbstractCluster.InterceptorInvokerNode->FailoverClusterInvoker
         return (ClusterInvoker<T>) cluster.join(directory);
+        // MockClusterInvoker->chain(AbstractCluster.InterceptorInvokerNode)->FailoverClusterInvoker
     }
 
     public <T> void reRefer(ClusterInvoker<?> invoker, URL newSubscribeUrl) {
@@ -722,6 +726,7 @@ public class RegistryProtocol implements Protocol {
     }
 
     public static class InvokerDelegate<T> extends InvokerWrapper<T> {
+        // aa
         private final Invoker<T> invoker;
 
         /**

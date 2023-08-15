@@ -18,6 +18,7 @@ package org.apache.dubbo.rpc.service;
 
 public interface Destroyable {
 
+    // 在 InvokerInvocationHandler#invoke 方法里会有特殊处理
     void $destroy();
 
 }

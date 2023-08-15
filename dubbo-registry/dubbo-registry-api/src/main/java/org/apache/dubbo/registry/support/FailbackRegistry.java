@@ -380,7 +380,8 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             throw new IllegalArgumentException("notify listener == null");
         }
         try {
-            // 调用监听器（RegistryDirectory）
+            // 调用监听器通知配置变更
+            // listener —— RegistryDirectory
             doNotify(url, listener, urls);
         } catch (Exception t) {
             // 处理通知失败

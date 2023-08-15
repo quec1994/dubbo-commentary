@@ -69,6 +69,9 @@ public class NettyClient extends AbstractClient {
      * current channel. Each successful invocation of {@link NettyClient#doConnect()} will
      * replace this with new channel and close old channel.
      * <b>volatile, please copy reference to use.</b>
+     * <p>
+     * 当前隧道。每次成功调用 {@link NettyClient#doConnect()} 都会用新隧道替换它，并关闭旧隧道。
+     * <b>易失性，请复制引用使用。</b>
      */
     private volatile Channel channel;
 
@@ -77,8 +80,8 @@ public class NettyClient extends AbstractClient {
      * It wil init and start netty.
      */
     public NettyClient(final URL url, final ChannelHandler handler) throws RemotingException {
-    	// you can customize name and type of client thread pool by THREAD_NAME_KEY and THREADPOOL_KEY in CommonConstants.
-    	// the handler will be wrapped: MultiMessageHandler->HeartbeatHandler->handler
+        // you can customize name and type of client thread pool by THREAD_NAME_KEY and THREADPOOL_KEY in CommonConstants.
+        // the handler will be wrapped: MultiMessageHandler->HeartbeatHandler->handler
         // 可以通过CommonConstants中的thread_name_KEY和THREADPOOL_KEY自定义客户端线程池的名称和类型。
         // handler将被包装：MultiMessageHandler->HeartbeatHandler->handler
 
@@ -91,7 +94,7 @@ public class NettyClient extends AbstractClient {
 
         // NettyClient的父类AbstractClient的构造函数里会执行链接操作，建立socket连接
         // 而当netty链接成功时，会调用AbstractPeer的connected方法，继而调用AbstractPeer的handler属性的connected方法
-    	super(url, wrapChannelHandler(url, handler));
+        super(url, wrapChannelHandler(url, handler));
     }
 
     /**
@@ -111,18 +114,21 @@ public class NettyClient extends AbstractClient {
     }
 
     protected void initBootstrap(NettyClientHandler nettyClientHandler) {
+        // 事件循环组（可配置基于Linux的epoll，默认基于nio）
         bootstrap.group(EVENT_LOOP_GROUP)
                 .option(ChannelOption.SO_KEEPALIVE, true)
                 .option(ChannelOption.TCP_NODELAY, true)
                 .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                 //.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, getTimeout())
+                // socket隧道实现类（可配置基于Linux的epoll，默认基于nio）
                 .channel(socketChannelClass());
-
+        // 发起链接的超时时间
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, Math.max(DEFAULT_CONNECT_TIMEOUT, getConnectTimeout()));
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
 
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
+                // 心跳超时时间，默认60秒
                 int heartbeatInterval = UrlUtils.getHeartbeat(getUrl());
 
                 if (getUrl().getParameter(SSL_ENABLED_KEY, false)) {
@@ -131,11 +137,16 @@ public class NettyClient extends AbstractClient {
 
                 NettyCodecAdapter adapter = new NettyCodecAdapter(getCodec(), getUrl(), NettyClient.this);
                 ch.pipeline()//.addLast("logging",new LoggingHandler(LogLevel.INFO))//for debug
+                        // 解码器（数据反序列化）
                         .addLast("decoder", adapter.getDecoder())
+                        // 编码器（数据序列化）
                         .addLast("encoder", adapter.getEncoder())
+                        // 设置链接空闲时间
                         .addLast("client-idle-handler", new IdleStateHandler(heartbeatInterval, 0, 0, MILLISECONDS))
+                        // 接收数据执行器
                         .addLast("handler", nettyClientHandler);
 
+                // 代理
                 String socksProxyHost = ConfigUtils.getProperty(SOCKS_PROXY_HOST);
                 if(socksProxyHost != null) {
                     int socksProxyPort = Integer.parseInt(ConfigUtils.getProperty(SOCKS_PROXY_PORT, DEFAULT_SOCKS_PROXY_PORT));
@@ -154,13 +165,14 @@ public class NettyClient extends AbstractClient {
             boolean ret = future.awaitUninterruptibly(getConnectTimeout(), MILLISECONDS);
 
             if (ret && future.isSuccess()) {
-                // 获取渠道
+                // 获取新netty隧道
                 Channel newChannel = future.channel();
                 try {
                     // Close old channel
                     // copy reference
                     Channel oldChannel = NettyClient.this.channel;
                     if (oldChannel != null) {
+                        // 关闭旧netty隧道
                         try {
                             if (logger.isInfoEnabled()) {
                                 logger.info("Close old netty channel " + oldChannel + " on create new netty channel " + newChannel);
@@ -182,7 +194,7 @@ public class NettyClient extends AbstractClient {
                             NettyChannel.removeChannelIfDisconnected(newChannel);
                         }
                     } else {
-                        // 保存渠道
+                        // 保存新netty隧道
                         NettyClient.this.channel = newChannel;
                     }
                 }
@@ -221,10 +233,12 @@ public class NettyClient extends AbstractClient {
 
     @Override
     protected org.apache.dubbo.remoting.Channel getChannel() {
+        // 连接远端服务器的隧道，doConnect 方法链接并保存的netty隧道
         Channel c = channel;
         if (c == null) {
             return null;
         }
+        // 根据netty隧道获取dubbo隧道
         return NettyChannel.getOrAddChannel(c, getUrl(), this);
     }
 

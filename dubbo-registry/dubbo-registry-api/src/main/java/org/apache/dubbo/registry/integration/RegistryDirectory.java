@@ -126,18 +126,18 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> {
                 // 判断类别
                 .collect(Collectors.groupingBy(this::judgeCategory));
 
-        // 动态配置变更（旧版）
+        // 转换动态配置（旧版）URL
         List<URL> configuratorURLs = categoryUrls.getOrDefault(CONFIGURATORS_CATEGORY, Collections.emptyList());
-        // 把configurators属性赋值为最新的
+        // 将URL转换成Configurator，并且把服务目录的configurators属性赋值为最新的
         this.configurators = Configurator.toConfigurators(configuratorURLs).orElse(this.configurators);
 
-        // 路由规则变更（旧版）
+        // 转换路由规则（旧版）URL
         List<URL> routerURLs = categoryUrls.getOrDefault(ROUTERS_CATEGORY, Collections.emptyList());
-        // 为routerChain属性添加路由规则
+        // 将URL转换成Router，并添加到服务目录的路由链中
         toRouters(routerURLs).ifPresent(this::addRouters);
 
         // providers
-        // 服务提供者信息变更
+        // 转换服务提供者URL
         List<URL> providerURLs = categoryUrls.getOrDefault(PROVIDERS_CATEGORY, Collections.emptyList());
         /**
          * 3.x added for extend URL address

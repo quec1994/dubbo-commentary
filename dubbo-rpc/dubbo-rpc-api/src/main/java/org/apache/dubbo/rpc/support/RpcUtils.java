@@ -42,9 +42,9 @@ import static org.apache.dubbo.rpc.Constants.$ECHO;
 import static org.apache.dubbo.rpc.Constants.$ECHO_PARAMETER_DESC;
 import static org.apache.dubbo.rpc.Constants.ASYNC_KEY;
 import static org.apache.dubbo.rpc.Constants.AUTO_ATTACH_INVOCATIONID_KEY;
+import static org.apache.dubbo.rpc.Constants.GENERIC_KEY;
 import static org.apache.dubbo.rpc.Constants.ID_KEY;
 import static org.apache.dubbo.rpc.Constants.RETURN_KEY;
-import static org.apache.dubbo.rpc.Constants.GENERIC_KEY;
 
 /**
  * RpcUtils
@@ -56,10 +56,12 @@ public class RpcUtils {
 
     public static Class<?> getReturnType(Invocation invocation) {
         try {
+            // 获取泛化调用方法的返回值
             if (invocation != null && invocation.getInvoker() != null
                     && invocation.getInvoker().getUrl() != null
                     && invocation.getInvoker().getInterface() != GenericService.class
                     && !invocation.getMethodName().startsWith("$")) {
+                // 泛化调用
                 String service = invocation.getInvoker().getUrl().getServiceInterface();
                 if (StringUtils.isNotEmpty(service)) {
                     Method method = getMethodByService(invocation, service);
@@ -86,7 +88,7 @@ public class RpcUtils {
                  *  of course we can change the serialization to use Type to create, but this work is to large....
                  */
                 String generic = invocation.getInvoker().getUrl().getParameter(GENERIC_KEY);
-                if(!ProtocolUtils.isGeneric(generic)){
+                if (!ProtocolUtils.isGeneric(generic)) {
                     String service = invocation.getInvoker().getUrl().getServiceInterface();
                     if (StringUtils.isNotEmpty(service)) {
                         Method method = getMethodByService(invocation, service);
@@ -112,19 +114,25 @@ public class RpcUtils {
      * @param inv
      */
     public static void attachInvocationIdIfAsync(URL url, Invocation inv) {
+        // 幂等操作：默认情况下会在异步操作中添加调用id
         if (isAttachInvocationId(url, inv) && getInvocationId(inv) == null && inv instanceof RpcInvocation) {
             inv.setAttachment(ID_KEY, String.valueOf(INVOKE_ID.getAndIncrement()));
         }
     }
 
     private static boolean isAttachInvocationId(URL url, Invocation invocation) {
+        // 方法参数里设置的是否要自动附上调用id
         String value = url.getMethodParameter(invocation.getMethodName(), AUTO_ATTACH_INVOCATIONID_KEY);
         if (value == null) {
+            // 方法参数里没有设置是否要自动附上调用id
+            // 查看是否异步操作，异步操作默认设置invocationid
             // add invocationid in async operation by default
             return isAsync(url, invocation);
         } else if (Boolean.TRUE.toString().equalsIgnoreCase(value)) {
+            // 方法参数里设置了要自动附上调用id
             return true;
         } else {
+            // 否则不自动附上调用id
             return false;
         }
     }
@@ -134,8 +142,10 @@ public class RpcUtils {
                 && invocation.getArguments() != null
                 && invocation.getArguments().length > 0
                 && invocation.getArguments()[0] instanceof String) {
+            // 泛化调用时第一个参数是方法名
             return (String) invocation.getArguments()[0];
         }
+        // 非泛化调用直接返回invocation里的方法名称
         return invocation.getMethodName();
     }
 
@@ -168,36 +178,48 @@ public class RpcUtils {
     }
 
     public static boolean isAsync(URL url, Invocation inv) {
+        // 是否异步操作
         boolean isAsync;
 
         if (inv instanceof RpcInvocation) {
             RpcInvocation rpcInvocation = (RpcInvocation) inv;
             if (rpcInvocation.getInvokeMode() != null) {
+                // 调用参数模式
                 return rpcInvocation.getInvokeMode() == InvokeMode.ASYNC;
             }
         }
 
         String config;
         if ((config = inv.getAttachment(getMethodName(inv) + DOT_SEPARATOR + ASYNC_KEY)) != null) {
+            // 附加参数里的方法设置
             isAsync = Boolean.valueOf(config);
         } else if ((config = inv.getAttachment(ASYNC_KEY)) != null) {
+            // 附加参数里的服务设置
             isAsync = Boolean.valueOf(config);
         } else if ((config = url.getMethodParameter(getMethodName(inv), ASYNC_KEY)) != null) {
+            // 方法或服务参数
             isAsync = Boolean.valueOf(config);
         } else {
+            // 服务参数
             isAsync = url.getParameter(ASYNC_KEY, false);
         }
         return isAsync;
     }
 
     public static boolean isReturnTypeFuture(Invocation inv) {
+        // 判断是不是异步方法返回值
+
         Class<?> clazz;
         if (inv instanceof RpcInvocation) {
             clazz = ((RpcInvocation) inv).getReturnType();
         } else {
+            // 获取泛化调用的方法返回值
             clazz = getReturnType(inv);
         }
-        return (clazz != null && CompletableFuture.class.isAssignableFrom(clazz)) || isGenericAsync(inv);
+        // 判断返回值
+        return (clazz != null && CompletableFuture.class.isAssignableFrom(clazz))
+                // 根据泛化调用使用的方法判断
+                || isGenericAsync(inv);
     }
 
     public static boolean isGenericAsync(Invocation inv) {
@@ -216,6 +238,7 @@ public class RpcUtils {
 
     public static InvokeMode getInvokeMode(URL url, Invocation inv) {
         if (inv instanceof RpcInvocation) {
+            // 第一次执行的时候一般不会走这个逻辑
             RpcInvocation rpcInvocation = (RpcInvocation) inv;
             if (rpcInvocation.getInvokeMode() != null) {
                 return rpcInvocation.getInvokeMode();
@@ -223,8 +246,10 @@ public class RpcUtils {
         }
 
         if (isReturnTypeFuture(inv)) {
+            // 异步方法返回值
             return InvokeMode.FUTURE;
         } else if (isAsync(url, inv)) {
+            // 异步操作
             return InvokeMode.ASYNC;
         } else {
             return InvokeMode.SYNC;
@@ -232,13 +257,18 @@ public class RpcUtils {
     }
 
     public static boolean isOneway(URL url, Invocation inv) {
+        // 判断是否指定了单向请求，单向请求不需要的远端的返回值，只调用不等待远端方法的执行结果
+
         boolean isOneway;
         String config;
         if ((config = inv.getAttachment(getMethodName(inv) + DOT_SEPARATOR + RETURN_KEY)) != null) {
+            // 调用参数附件里的方法设置
             isOneway = !Boolean.valueOf(config);
         } else if ((config = inv.getAttachment(RETURN_KEY)) != null) {
+            // 调用参数附件里的直接设置
             isOneway = !Boolean.valueOf(config);
         } else {
+            // url上的方法和服务参数
             isOneway = !url.getMethodParameter(getMethodName(inv), RETURN_KEY, true);
         }
         return isOneway;
@@ -266,10 +296,12 @@ public class RpcUtils {
 
     public static long getTimeout(URL url, String methodName, RpcContext context, long defaultTimeout) {
         long timeout = defaultTimeout;
+        // 调用参数附件里的
         Object genericTimeout = context.getObjectAttachment(TIMEOUT_KEY);
         if (genericTimeout != null) {
             timeout = convertToNumber(genericTimeout, defaultTimeout);
         } else if (url != null) {
+            // 拿当前方法和服务参数上所配置的超时时间，默认为1000，1秒
             timeout = url.getMethodPositiveParameter(methodName, TIMEOUT_KEY, defaultTimeout);
         }
         return timeout;

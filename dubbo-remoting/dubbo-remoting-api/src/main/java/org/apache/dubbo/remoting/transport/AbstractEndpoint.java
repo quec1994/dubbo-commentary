@@ -46,6 +46,9 @@ public abstract class AbstractEndpoint extends AbstractPeer implements Resetable
     }
 
     protected static Codec2 getChannelCodec(URL url) {
+        // 获取隧道编解码器
+
+        // 编解码器扩展名必须与协议名保持一致
         String codecName = url.getProtocol(); // codec extension name must stay the same with protocol name
         if (ExtensionLoader.getExtensionLoader(Codec2.class).hasExtension(codecName)) {
             return ExtensionLoader.getExtensionLoader(Codec2.class).getExtension(codecName);

@@ -59,6 +59,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
     private final Class<T> type;
 
     private final URL url;
+    // dubbo://192.168.56.1:20880/org.apache.dubbo.demo.DemoService?anyhost=true&application=dubbo-demo-annotation-consumer&check=false&deprecated=false&dubbo=2.0.2&dynamic=true&generic=false&init=false&interface=org.apache.dubbo.demo.DemoService&methods=sayHello,sayHelloAsync&pid=17820&register.ip=192.168.56.1&release=release&remote.application=dubbo-demo-annotation-provider&service.name=ServiceBean:/org.apache.dubbo.demo.DemoService&side=consumer&sticky=false&timestamp=1691995573986
 
     private final Map<String, Object> attachment;
 
@@ -139,6 +140,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
     @Override
     public Result invoke(Invocation inv) throws RpcException {
         // if invoker is destroyed due to address refresh from registry, let's allow the current invoke to proceed
+        // 如果invoker由于注册表中的地址刷新而被销毁，那么让我们允许当前调用继续进行
         if (destroyed.get()) {
             logger.warn("Invoker for service " + this + " on consumer " + NetUtils.getLocalHost() + " is destroyed, "
                     + ", dubbo version is " + Version.getVersion() + ", this invoker should not be used any longer");
@@ -146,10 +148,14 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
         RpcInvocation invocation = (RpcInvocation) inv;
         invocation.setInvoker(this);
         if (CollectionUtils.isNotEmptyMap(attachment)) {
+            // DubboInvoker 实例化的时候，会把url参数中的 interface、group、token 对应的参数值放入 attachment 中
+            // 在这将 attachment 加入invocation中
             invocation.addObjectAttachmentsIfAbsent(attachment);
         }
 
+        // 上下文中的附件
         Map<String, Object> contextAttachments = RpcContext.getContext().getObjectAttachments();
+        // {"remote.application":"dubbo-demo-annotation-consumer"}
         if (CollectionUtils.isNotEmptyMap(contextAttachments)) {
             /**
              * invocation.addAttachmentsIfAbsent(context){@link RpcInvocation#addAttachmentsIfAbsent(Map)}should not be used here,
@@ -157,14 +163,17 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
              * by the built-in retry mechanism of the Dubbo. The attachment to update RpcContext will no longer work, which is
              * a mistake in most cases (for example, through Filter to RpcContext output traceId and spanId and other information).
              */
+            // 将上下文中的 attachment 加入invocation中
             invocation.addObjectAttachments(contextAttachments);
         }
 
         invocation.setInvokeMode(RpcUtils.getInvokeMode(url, invocation));
+        // 设置 Invocation Id
         RpcUtils.attachInvocationIdIfAsync(getUrl(), invocation);
 
         Byte serializationId = CodecSupport.getIDByName(getUrl().getParameter(SERIALIZATION_KEY, DEFAULT_REMOTING_SERIALIZATION));
         if (serializationId != null) {
+            // 设置序列化类型id，默认 hessian2
             invocation.put(SERIALIZATION_ID_KEY, serializationId);
         }
 
@@ -195,13 +204,16 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
     }
 
     protected ExecutorService getCallbackExecutor(URL url, Invocation inv) {
+        // 获取回调方法执行器（线程池）
         ExecutorService sharedExecutor = ExtensionLoader.getExtensionLoader(ExecutorRepository.class).getDefaultExtension().getExecutor(url);
         if (InvokeMode.SYNC == RpcUtils.getInvokeMode(getUrl(), inv)) {
             if(sharedExecutor == null) {
                 sharedExecutor = ExtensionLoader.getExtensionLoader(ExecutorRepository.class).getDefaultExtension().getSharedExecutor();
             }
+            // 无线程执行器，作用是将异步任务转同步执行
             return new ThreadlessExecutor(sharedExecutor);
         } else {
+            // 共享执行器（线程池）
             return sharedExecutor;
         }
     }

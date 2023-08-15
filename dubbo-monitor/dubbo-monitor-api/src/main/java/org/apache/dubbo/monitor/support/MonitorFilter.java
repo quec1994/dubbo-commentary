@@ -61,6 +61,7 @@ public class MonitorFilter implements Filter, Filter.Listener {
     /**
      * The Concurrent counter
      */
+    // 记录方法的执行次数
     private final ConcurrentMap<String, AtomicInteger> concurrents = new ConcurrentHashMap<String, AtomicInteger>();
 
     /**
@@ -86,6 +87,7 @@ public class MonitorFilter implements Filter, Filter.Listener {
         if (invoker.getUrl().hasParameter(MONITOR_KEY)) {
             invocation.put(MONITOR_FILTER_START_TIME, System.currentTimeMillis());
             invocation.put(MONITOR_REMOTE_HOST_STORE, RpcContext.getContext().getRemoteHost());
+            // 方法的执行次数+1
             getConcurrent(invoker, invocation).incrementAndGet(); // count up
         }
         return invoker.invoke(invocation); // proceed invocation chain
@@ -94,6 +96,7 @@ public class MonitorFilter implements Filter, Filter.Listener {
     // concurrent counter
     private AtomicInteger getConcurrent(Invoker<?> invoker, Invocation invocation) {
         String key = invoker.getInterface().getName() + "." + invocation.getMethodName();
+        // 记录方法的执行次数
         return concurrents.computeIfAbsent(key, k -> new AtomicInteger());
     }
 

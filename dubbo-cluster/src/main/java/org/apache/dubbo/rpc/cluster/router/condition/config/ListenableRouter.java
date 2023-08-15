@@ -90,6 +90,7 @@ public abstract class ListenableRouter extends AbstractRouter implements Configu
         }
 
         // We will check enabled status inside each router.
+        // 根据路由规则进行过滤
         for (Router router : conditionRouters) {
             invokers = router.route(invokers, url, invocation);
         }

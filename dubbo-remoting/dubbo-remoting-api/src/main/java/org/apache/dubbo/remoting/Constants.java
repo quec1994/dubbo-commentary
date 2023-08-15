@@ -107,6 +107,7 @@ public interface Constants {
 
     String BIND_PORT_KEY = "bind.port";
 
+    // 异步调用时，标记sent=true时，表示网络已发出数据
     String SENT_KEY = "sent";
 
     String DISPATCHER_KEY = "dispatcher";

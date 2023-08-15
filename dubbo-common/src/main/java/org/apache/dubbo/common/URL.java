@@ -120,6 +120,7 @@ class URL implements Serializable {
 
     private volatile transient Map<String, Number> numbers;
 
+    // <method, <key, n>>
     private volatile transient Map<String, Map<String, Number>> methodNumbers;
 
     private volatile transient Map<String, URL> urls;
@@ -683,6 +684,7 @@ class URL implements Serializable {
         if (methodNumbers == null) { // concurrent initialization is tolerant
             methodNumbers = new ConcurrentHashMap<>();
         }
+        // <method, <key, n>>
         return methodNumbers;
     }
 
@@ -873,18 +875,21 @@ class URL implements Serializable {
     }
 
     public String getMethodParameter(String method, String key) {
+        // 先取方法上的参数
         Map<String, String> keyMap = getMethodParameters().get(method);
         String value = null;
         if (keyMap != null) {
             value = keyMap.get(key);
         }
         if (StringUtils.isEmpty(value)) {
+            // 方法上的参数里没有，就取服务的参数
             value = parameters.get(key);
         }
         return value;
     }
 
     public String getMethodParameter(String method, String key, String defaultValue) {
+        // 先取方法上的参数，方法上的参数里没有，就取服务的参数
         String value = getMethodParameter(method, key);
         return StringUtils.isEmpty(value) ? defaultValue : value;
     }
@@ -1246,6 +1251,7 @@ class URL implements Serializable {
             return this;
         }
         Map<String, String> map = new HashMap<>(parameters);
+        // 使用原先的parameters里的键值对覆盖传进来的parameters里的键值对
         map.putAll(getParameters());
         return new URL(getProtocol(), username, password, host, port, path, map);
     }

@@ -31,6 +31,9 @@ public class TagRouterFactory extends CacheableRouterFactory {
 
     @Override
     protected Router createRouter(URL url) {
+        // 创建一个空的对象
+        // 不在实例化的时候从配置中心获取标签路由的数据，
+        // 标签路由是按服务提供者应用名监听的，因此要在服务目录的invokers生成完成之后再监听和获取数据
         return new TagRouter(url);
     }
 }

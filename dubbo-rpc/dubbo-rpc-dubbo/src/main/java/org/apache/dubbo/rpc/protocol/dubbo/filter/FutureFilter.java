@@ -46,6 +46,7 @@ public class FutureFilter implements Filter, Filter.Listener {
 
     @Override
     public Result invoke(final Invoker<?> invoker, final Invocation invocation) throws RpcException {
+        // 执行配置的方法调用监听逻辑
         fireInvokeCallback(invoker, invocation);
         // need to configure if there's return value before the invocation in order to help invoker to judge if it's
         // necessary to return future.
@@ -55,8 +56,10 @@ public class FutureFilter implements Filter, Filter.Listener {
     @Override
     public void onResponse(Result result, Invoker<?> invoker, Invocation invocation) {
         if (result.hasException()) {
+            // 执行onthrow配置的方法
             fireThrowCallback(invoker, invocation, result.getException());
         } else {
+            // 执行onreturn配置的方法
             fireReturnCallback(invoker, invocation, result.getValue());
         }
     }
@@ -67,6 +70,10 @@ public class FutureFilter implements Filter, Filter.Listener {
     }
 
     private void fireInvokeCallback(final Invoker<?> invoker, final Invocation invocation) {
+        // 获取异步方法信息
+        // 实际作用是获取方法引用上配置的方法监听
+        //  @Method(name = "sayHello", oninvoke = "methodInvokeListener.oninvoke", onreturn = "methodInvokeListener.onreturn",
+        //         onthrow = "methodInvokeListener.onthrow")
         final AsyncMethodInfo asyncMethodInfo = getAsyncMethodInfo(invoker, invocation);
         if (asyncMethodInfo == null) {
             return;
@@ -84,15 +91,20 @@ public class FutureFilter implements Filter, Filter.Listener {
         ReflectUtils.makeAccessible(onInvokeMethod);
         Object[] params = invocation.getArguments();
         try {
+            // 执行oninvoke配置的方法
             onInvokeMethod.invoke(onInvokeInst, params);
         } catch (InvocationTargetException e) {
+            // 执行onthrow配置的方法
             fireThrowCallback(invoker, invocation, e.getTargetException());
         } catch (Throwable e) {
+            // 执行onthrow配置的方法
             fireThrowCallback(invoker, invocation, e);
         }
     }
 
     private void fireReturnCallback(final Invoker<?> invoker, final Invocation invocation, final Object result) {
+        // 执行onreturn配置的方法
+
         final AsyncMethodInfo asyncMethodInfo = getAsyncMethodInfo(invoker, invocation);
         if (asyncMethodInfo == null) {
             return;
@@ -137,6 +149,8 @@ public class FutureFilter implements Filter, Filter.Listener {
     }
 
     private void fireThrowCallback(final Invoker<?> invoker, final Invocation invocation, final Throwable exception) {
+        // 执行onthrow配置的方法
+
         final AsyncMethodInfo asyncMethodInfo = getAsyncMethodInfo(invoker, invocation);
         if (asyncMethodInfo == null) {
             return;
@@ -182,6 +196,7 @@ public class FutureFilter implements Filter, Filter.Listener {
     }
 
     private AsyncMethodInfo getAsyncMethodInfo(Invoker<?> invoker, Invocation invocation) {
+        // 调用参数里主动传的方法监听信息
         AsyncMethodInfo asyncMethodInfo = (AsyncMethodInfo) invocation.get(ASYNC_METHOD_INFO);
         if (asyncMethodInfo != null) {
             return asyncMethodInfo;
@@ -194,9 +209,11 @@ public class FutureFilter implements Filter, Filter.Listener {
 
         String methodName = invocation.getMethodName();
         if (methodName.equals($INVOKE)) {
+            // 泛化调用
             methodName = (String) invocation.getArguments()[0];
         }
 
+        // ConsumerModel里的方法监听信息，引用服务时设置进去的
         return consumerModel.getAsyncInfo(methodName);
     }
 

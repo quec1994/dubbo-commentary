@@ -57,10 +57,15 @@ public class RouterChain<T> {
         List<RouterFactory> extensionFactories = ExtensionLoader.getExtensionLoader(RouterFactory.class)
                 .getActivateExtension(url, ROUTER_KEY);
 
+        // 标签路由规则监听地址：/dubbo/config/dubbo/dubbo-demo-annotation-provider.tag-router
+        // 服务路由规则监听地址：/dubbo/config/dubbo/dubbo-demo-annotation-consumer.condition-router
+        // 应用路由规则监听地址：/dubbo/config/dubbo/org.apache.dubbo.demo.DemoService::.condition-router
+
         // 然后利用RouterFactory根据url生成各个类型的Router
         // 这里生产的routers已经是真实可用的了，但是有个比较特殊的：
         // 对于应用条件路由和服务条件路由对应的Router对象，对象内部已经有真实可用的数据了（数据已经从配置中心得到了）
-        // 但是对于标签路由则没有，它暂时还相当于一个没有内容的对象（还没有从配置中心获取标签路由的数据）
+        // 但是对于标签路由则没有，它暂时还相当于一个没有内容的对象（还没有从配置中心获取标签路由的数据，
+        //   标签路由是按服务提供者应用名监听的，因此要在服务目录的invokers生成完成之后再监听和获取数据）
         List<Router> routers = extensionFactories.stream()
                 .map(factory -> factory.getRouter(url))
                 .collect(Collectors.toList());
@@ -111,6 +116,7 @@ public class RouterChain<T> {
      */
     public List<Invoker<T>> route(URL url, Invocation invocation) {
         List<Invoker<T>> finalInvokers = invokers;
+        // 使用路由对服务提供者进行过滤
         for (Router router : routers) {
             finalInvokers = router.route(finalInvokers, url, invocation);
         }

@@ -92,11 +92,13 @@ public class MockClusterInvoker<T> implements ClusterInvoker<T> {
     public Result invoke(Invocation invocation) throws RpcException {
         Result result = null;
 
+        // 查看方法是否配置了mock
         String value = getUrl().getMethodParameter(invocation.getMethodName(), MOCK_KEY, Boolean.FALSE.toString()).trim();
         if (value.length() == 0 || "false".equalsIgnoreCase(value)) {
             //no mock
             result = this.invoker.invoke(invocation);
         } else if (value.startsWith("force")) {
+            // 配置了mock，并且是force开头
             if (logger.isWarnEnabled()) {
                 logger.warn("force-mock: " + invocation.getMethodName() + " force-mock enabled , url : " + getUrl());
             }

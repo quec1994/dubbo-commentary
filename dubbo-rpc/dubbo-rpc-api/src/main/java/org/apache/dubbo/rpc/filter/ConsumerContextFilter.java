@@ -45,18 +45,28 @@ public class ConsumerContextFilter implements Filter {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
+        /*
+         * ConsumerContextFilter为消费者invoker设置当前RpcContext，包括invoker、invocation、本地主机、远程主机和端口。
+         * 这样做是为了所需信息可用于执行线程的RpcContext。
+         */
+
         RpcContext context = RpcContext.getContext();
         context.setInvoker(invoker)
                 .setInvocation(invocation)
+                // 本地主机
                 .setLocalAddress(NetUtils.getLocalHost(), 0)
+                // 远程主机和端口
                 .setRemoteAddress(invoker.getUrl().getHost(), invoker.getUrl().getPort())
+                // 服务提供者应用名
                 .setRemoteApplicationName(invoker.getUrl().getParameter(REMOTE_APPLICATION_KEY))
+                // 消费者应用名(传给服务提供者用)
                 .setAttachment(REMOTE_APPLICATION_KEY, invoker.getUrl().getParameter(APPLICATION_KEY));
         if (invocation instanceof RpcInvocation) {
             ((RpcInvocation) invocation).setInvoker(invoker);
         }
 
         // pass default timeout set by end user (ReferenceConfig)
+        // 判断上下文里设置的超时时间是否超时
         Object countDown = context.get(TIME_COUNTDOWN_KEY);
         if (countDown != null) {
             TimeoutCountDown timeoutCountDown = (TimeoutCountDown) countDown;

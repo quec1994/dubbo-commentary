@@ -118,12 +118,17 @@ public class Environment extends LifecycleAdapter implements FrameworkExt {
      * @return
      */
     public synchronized CompositeConfiguration getPrefixedConfiguration(AbstractConfig config) {
+        /*
+         * 在启动时，Dubbo由各种配置驱动，如应用程序、注册表、协议等。所有配置都将汇聚到一个数据总线URL中，然后驱动后续进程。
+         * 目前，有许多配置源，包括AbstractConfig（API、XML、annotation）、-D、配置中心等。这种方法可以帮助我们从各种配置源中筛选出最优先的值。
+         */
+
         CompositeConfiguration prefixedConfiguration = new CompositeConfiguration(config.getPrefix(), config.getId());
         Configuration configuration = new ConfigConfigurationAdapter(config);
         if (this.isConfigCenterFirst()) {
             // The sequence would be: SystemConfiguration -> AppExternalConfiguration -> ExternalConfiguration -> AbstractConfig -> PropertiesConfiguration
             // Config center has the highest priority
-            // JVM启动配置
+            // JVM启动配置(-D)
             prefixedConfiguration.addConfiguration(systemConfiguration);
             // 操作系统环境变量
             prefixedConfiguration.addConfiguration(environmentConfiguration);
@@ -131,18 +136,18 @@ public class Environment extends LifecycleAdapter implements FrameworkExt {
             prefixedConfiguration.addConfiguration(appExternalConfiguration);
             // 配置中心Global配置
             prefixedConfiguration.addConfiguration(externalConfiguration);
-            // xml、注解配置
+            // AbstractConfig（API、XML、annotation）
             prefixedConfiguration.addConfiguration(configuration);
             // dubbo.properties文件里的配置和通过OrderedPropertiesProvider 扩展点加载的配置
             prefixedConfiguration.addConfiguration(propertiesConfiguration);
         } else {
             // The sequence would be: SystemConfiguration -> AbstractConfig -> AppExternalConfiguration -> ExternalConfiguration -> PropertiesConfiguration
             // Config center has the highest priority
-            // JVM启动配置
+            // JVM启动配置(-D)
             prefixedConfiguration.addConfiguration(systemConfiguration);
             // 操作系统环境变量
             prefixedConfiguration.addConfiguration(environmentConfiguration);
-            // xml、注解配置
+            // AbstractConfig（API、XML、annotation）
             prefixedConfiguration.addConfiguration(configuration);
             // 配置中心APP配置
             prefixedConfiguration.addConfiguration(appExternalConfiguration);
@@ -161,6 +166,12 @@ public class Environment extends LifecycleAdapter implements FrameworkExt {
      * prioritized sources, it also guarantees that configs changed dynamically can take effect on the fly.
      */
     public Configuration getConfiguration() {
+        /*
+         * 有两种方法可以在服务 暴露/引用 期间或运行时获得配置：
+         * 1. URL，URL中的值是相对固定的。可以直接获得值。
+         * 2. 该方法中公开的配置便于我们查询多个优先级源的最新值，也保证了动态更改的配置可以动态生效。
+         */
+
         if (globalConfiguration == null) {
             globalConfiguration = new CompositeConfiguration();
             globalConfiguration.addConfiguration(systemConfiguration);
