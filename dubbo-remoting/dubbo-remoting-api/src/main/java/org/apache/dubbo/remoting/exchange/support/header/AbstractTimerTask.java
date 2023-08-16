@@ -45,6 +45,7 @@ public abstract class AbstractTimerTask implements TimerTask {
     }
 
     static Long lastRead(Channel channel) {
+        // 获取隧道上一次读取到心跳数据的时间
         return (Long) channel.getAttribute(HeartbeatHandler.KEY_READ_TIMESTAMP);
     }
 

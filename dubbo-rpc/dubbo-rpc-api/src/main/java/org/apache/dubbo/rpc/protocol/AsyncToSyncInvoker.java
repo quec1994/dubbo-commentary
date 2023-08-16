@@ -62,6 +62,7 @@ public class AsyncToSyncInvoker<T> implements Invoker<T> {
                  * {@link java.util.concurrent.CompletableFuture#get()} was proved to have serious performance drop.
                  */
                 // 如果invocation指定是同步的，则阻塞等待结果
+                // AsyncRpcResult.get
                 asyncResult.get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
             }
         } catch (InterruptedException e) {

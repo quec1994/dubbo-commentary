@@ -36,15 +36,22 @@ public class DecodeHandler extends AbstractChannelHandlerDelegate {
 
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
+        /*
+         * 针对 DubboCodec 优化线程模型 收到一个 Request/Response 时，把消息体保存起来不立即做反序列化，派发到业务线程后再把消息体进行反序列化
+         */
+
         if (message instanceof Decodeable) {
+            // 反序列化message
             decode(message);
         }
 
         if (message instanceof Request) {
+            // 反序列化请求消息里的方法执行参数（Invocation）
             decode(((Request) message).getData());
         }
 
         if (message instanceof Response) {
+            // 反序列化响应消息里的方法返回值
             decode(((Response) message).getResult());
         }
 
@@ -53,6 +60,7 @@ public class DecodeHandler extends AbstractChannelHandlerDelegate {
 
     private void decode(Object message) {
         if (message instanceof Decodeable) {
+            // 未反序列化的数据，执行反序列化
             try {
                 ((Decodeable) message).decode();
                 if (log.isDebugEnabled()) {
@@ -64,6 +72,7 @@ public class DecodeHandler extends AbstractChannelHandlerDelegate {
                 }
             } // ~ end of catch
         } // ~ end of if
+        // 非未反序列化的数据，啥也不干
     } // ~ end of method decode
 
 }

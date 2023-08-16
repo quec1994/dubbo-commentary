@@ -174,7 +174,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
 
     public static void received(Channel channel, Response response, boolean timeout) {
         try {
-            // 从返回值map中移除当前返回值
+            // 从 FUTURES 中移除 Response.id 对应的future
             DefaultFuture future = FUTURES.remove(response.getId());
             if (future != null) {
 
@@ -221,7 +221,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
         if (res.getStatus() == Response.OK) {
             // 数据正常返回
 
-            // 调用父类 CompletableFuture 的方法在Future对象中写入远端返回值
+            // 调用父类 CompletableFuture 的方法在Future对象中写入远端方法返回值
             this.complete(res.getResult());
         } else if (res.getStatus() == Response.CLIENT_TIMEOUT || res.getStatus() == Response.SERVER_TIMEOUT) {
             // 超时

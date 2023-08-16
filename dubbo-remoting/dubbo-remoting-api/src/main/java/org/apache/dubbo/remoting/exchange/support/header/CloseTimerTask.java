@@ -38,13 +38,13 @@ public class CloseTimerTask extends AbstractTimerTask {
     @Override
     protected void doTask(Channel channel) {
         try {
-            // Server端上一次读取心跳数据的时间
+            // 隧道上一次读取到心跳数据的时间
             Long lastRead = lastRead(channel);
-            // Server端上一次写心跳数据的时间
+            // 隧道上一次写出心跳数据的时间
             Long lastWrite = lastWrite(channel);
             Long now = now();
             // check ping & pong at server
-            // 表示Server端有多长时间没有读到过数据或写出过数据了
+            // 表示隧道有多长时间没有读到过心跳数据或写出过心跳数据了
             if ((lastRead != null && now - lastRead > idleTimeout)
                     || (lastWrite != null && now - lastWrite > idleTimeout)) {
                 logger.warn("Close channel " + channel + ", because idleCheck timeout: "

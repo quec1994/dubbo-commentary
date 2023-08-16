@@ -57,6 +57,7 @@ public class AllChannelHandler extends WrappedChannelHandler {
 
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
+        // 获取执行器（线程池）
         ExecutorService executor = getPreferredExecutorService(message);
         try {
             // 交给线程池去处理message

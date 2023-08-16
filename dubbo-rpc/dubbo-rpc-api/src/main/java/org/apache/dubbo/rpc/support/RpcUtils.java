@@ -246,12 +246,13 @@ public class RpcUtils {
         }
 
         if (isReturnTypeFuture(inv)) {
-            // 异步方法返回值
+            // 远端方法执行模式，异步方法返回值
             return InvokeMode.FUTURE;
         } else if (isAsync(url, inv)) {
-            // 异步操作
+            // 远端方法执行模式，异步操作
             return InvokeMode.ASYNC;
         } else {
+            // 远端方法执行模式，同步
             return InvokeMode.SYNC;
         }
     }

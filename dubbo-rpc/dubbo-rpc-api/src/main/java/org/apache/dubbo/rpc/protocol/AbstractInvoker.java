@@ -167,6 +167,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
             invocation.addObjectAttachments(contextAttachments);
         }
 
+        // 设置远端方法执行模式
         invocation.setInvokeMode(RpcUtils.getInvokeMode(url, invocation));
         // 设置 Invocation Id
         RpcUtils.attachInvocationIdIfAsync(getUrl(), invocation);
@@ -211,6 +212,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
                 sharedExecutor = ExtensionLoader.getExtensionLoader(ExecutorRepository.class).getDefaultExtension().getSharedExecutor();
             }
             // 无线程执行器，作用是将异步任务转同步执行
+            // 远端方法同步执行时返回无线程执行器，响应消息回调将直接委托给等待响应消息返回的线程，也就是发起调用的线程
             return new ThreadlessExecutor(sharedExecutor);
         } else {
             // 共享执行器（线程池）

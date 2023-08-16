@@ -109,7 +109,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                 // 只发送数据，不等待远端方法返回结果，直接生成一个默认的结果，value=null
                 return AsyncRpcResult.newDefaultAsyncResult(invocation);
             } else {
-                // 获取远端方法数据返回的时候的执行器
+                // 获取收到响应数据时的回调执行器
                 ExecutorService executor = getCallbackExecutor(getUrl(), inv);
 
                 // 异步去请求，得到一个CompletableFuture，这里并不会阻塞
