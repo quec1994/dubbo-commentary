@@ -39,8 +39,10 @@ public class MultiMessageHandler extends AbstractChannelHandlerDelegate {
     public void received(Channel channel, Object message) throws RemotingException {
         // 判断接收到的数据是否是MultiMessage
         if (message instanceof MultiMessage) {
-            // 如果是则遍历MultiMessage传递给HeartbeatHandler进行处理
+            // 是
+
             MultiMessage list = (MultiMessage) message;
+            // 遍历MultiMessage传递给HeartbeatHandler进行处理
             for (Object obj : list) {
                 try {
                     handler.received(channel, obj);
@@ -54,7 +56,9 @@ public class MultiMessageHandler extends AbstractChannelHandlerDelegate {
                 }
             }
         } else {
-            // 不是则直接将Message传递给HeartbeatHandler进行处理
+            // 不是
+
+            // 直接将Message传递给HeartbeatHandler进行处理
             handler.received(channel, message);
         }
     }

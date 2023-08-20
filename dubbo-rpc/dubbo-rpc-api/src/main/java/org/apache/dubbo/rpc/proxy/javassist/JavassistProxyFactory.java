@@ -40,22 +40,25 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
 
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
-        // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
-        // 如果现在被代理的对象proxy本身就是一个已经被代理过的对象，那么则取type（接口）的Wrapper，否则取代理类的Wrapper
-        // Wrapper是针对某个类或某个接口的包装类，通过wrapper对象可以更方便的去执行某个类或某个接口的方法
-        // wrapper 是动态生成Wrapper子类的实例
-        final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
+        // 服务实现类 proxy = {DemoServiceImpl@3207}
+        // 服务接口 type = {Class@2310} "interface org.apache.dubbo.demo.DemoService"
+        // 注册中心url，同时也记录了服务配置
+        // url = registry://127.0.0.1:2181/org.apache.dubbo.registry.RegistryService?application=dubbo-demo-annotation-provider&dubbo=2.0.2&export=dubbo%3A%2F%2F192.168.56.1%3A20880%2Forg.apache.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddubbo-demo-annotation-provider%26bind.ip%3D192.168.56.1%26bind.port%3D20880%26deprecated%3Dfalse%26dubbo%3D2.0.2%26dynamic%3Dtrue%26generic%3Dfalse%26interface%3Dorg.apache.dubbo.demo.DemoService%26methods%3DsayHello%2CsayHelloAsync%26pid%3D18904%26release%3D%26service.name%3DServiceBean%3A%2Forg.apache.dubbo.demo.DemoService%26side%3Dprovider%26timestamp%3D1692494809559&id=registryConfig&pid=18904&registry=zookeeper&timestamp=1692494809551
 
-        // proxy是服务实现类
-        // type是服务接口
-        // url是一个注册中心url，但同时也记录了服务配置
+        // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
+        // 如果现在被代理的对象proxy本身就是一个已经被代理过的对象，那么则动态生成一个type（接口）的Wrapper子类并实例化，
+        // 否则动态生成一个代理类的Wrapper子类并实例化，
+        final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
+        // Wrapper类是针对某个类或某个接口的包装类，wrapper 是动态生成Wrapper子类的对象实例，
+        // 通过wrapper对象可以更方便的去动态代理执行某个类或某个接口的方法
+
         return new AbstractProxyInvoker<T>(proxy, type, url) {
             @Override
             protected Object doInvoke(T proxy, String methodName,
                                       Class<?>[] parameterTypes,
                                       Object[] arguments) throws Throwable {
 
-                // 执行代理方法，实际执行proxy的methodName方法
+                // 动态代理执行方法，执行的是动态生成Wrapper子类对象实例的invokeMethod方法，实际执行proxy的methodName方法
                 return wrapper.invokeMethod(proxy, methodName, parameterTypes, arguments);
             }
         };

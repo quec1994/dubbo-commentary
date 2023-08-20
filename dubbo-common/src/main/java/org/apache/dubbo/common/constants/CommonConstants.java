@@ -122,6 +122,7 @@ public interface CommonConstants {
 
     // used by invocation attachments to transfer timeout from Consumer to Provider.
     // works as a replacement of TIMEOUT_KEY on wire, which seems to be totally useless in previous releases).
+    // 使用invocation附加参数"_TO"将超时时间从消费者传输到提供者，作为TIMEOUT_KEY的替代品，这在以前的版本中似乎完全没有用。
     String TIMEOUT_ATTACHMENT_KEY = "_TO";
 
     String TIME_COUNTDOWN_KEY = "timeout-countdown";

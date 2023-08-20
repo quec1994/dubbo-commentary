@@ -80,7 +80,10 @@ final class NettyChannel extends AbstractChannel {
      * @return
      */
     static NettyChannel getOrAddChannel(Channel ch, URL url, ChannelHandler handler) {
-        /* 通过netty隧道获取隧道缓存中的dubbo隧道。如果隧道缓存中不存在dubbo隧道，则创建dubbo隧道并将netty隧道放入其中。 */
+        /*
+         * 通过netty隧道获取隧道缓存中的dubbo隧道。如果隧道缓存中不存在dubbo隧道，则创建dubbo隧道并将netty隧道放入其中。
+         * 将与底层实现相关的隧道转换成dubbo框架中的隧道，屏蔽底层具体实现
+         */
 
         // ch - netty隧道
         if (ch == null) {

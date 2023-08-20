@@ -97,7 +97,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
             currentClient = clients[index.getAndIncrement() % clients.length];
         }
         try {
-            // isOneway 表示是否单向请求，默认为false
+            // isOneway 表示是否单向通信，默认为false
             boolean isOneway = RpcUtils.isOneway(getUrl(), invocation);
             // 计算超时时间
             int timeout = calculateTimeout(invocation, methodName);

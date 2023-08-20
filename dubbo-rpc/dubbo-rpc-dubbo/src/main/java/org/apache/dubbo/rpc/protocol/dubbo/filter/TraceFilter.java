@@ -16,6 +16,7 @@
  */
 package org.apache.dubbo.rpc.protocol.dubbo.filter;
 
+import com.alibaba.fastjson.JSON;
 import org.apache.dubbo.common.constants.CommonConstants;
 import org.apache.dubbo.common.extension.Activate;
 import org.apache.dubbo.common.logger.Logger;
@@ -30,8 +31,6 @@ import org.apache.dubbo.rpc.Invoker;
 import org.apache.dubbo.rpc.Result;
 import org.apache.dubbo.rpc.RpcContext;
 import org.apache.dubbo.rpc.RpcException;
-
-import com.alibaba.fastjson.JSON;
 
 import java.util.ArrayList;
 import java.util.Set;
@@ -74,7 +73,9 @@ public class TraceFilter implements Filter {
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long start = System.currentTimeMillis();
+        // 先执行下一个invoker的invoke方法
         Result result = invoker.invoke(invocation);
+
         long end = System.currentTimeMillis();
         if (TRACERS.size() > 0) {
             String key = invoker.getInterface().getName() + "." + invocation.getMethodName();
@@ -84,6 +85,7 @@ public class TraceFilter implements Filter {
                 channels = TRACERS.get(key);
             }
             if (CollectionUtils.isNotEmpty(channels)) {
+                // 有添加trace隧道，记录调用信息
                 for (Channel channel : new ArrayList<>(channels)) {
                     if (channel.isConnected()) {
                         try {
@@ -101,6 +103,7 @@ public class TraceFilter implements Filter {
                             count = c.getAndIncrement();
                             if (count < max) {
                                 String prompt = channel.getUrl().getParameter(Constants.PROMPT_KEY, Constants.DEFAULT_PROMPT);
+                                // 发送调用信息
                                 channel.send("\r\n" + RpcContext.getContext().getRemoteAddress() + " -> "
                                         + invoker.getInterface().getName()
                                         + "." + invocation.getMethodName()

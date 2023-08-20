@@ -57,6 +57,8 @@ final class HeaderExchangeChannel implements ExchangeChannel {
     }
 
     static HeaderExchangeChannel getOrAddChannel(Channel ch) {
+        // 将DubboChannel转换成HeaderExchangeChannel
+
         if (ch == null) {
             return null;
         }
@@ -132,7 +134,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         // 实例化的时候会自动生成一个RequestId
         Request req = new Request();
         req.setVersion(Version.getProtocolVersion());
-        // 双向请求
+        // 双向通信
         req.setTwoWay(true);
         req.setData(request);
         // 构造future对象，外层方法接收到的返回值

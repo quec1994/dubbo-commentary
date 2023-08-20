@@ -76,8 +76,11 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     }
 
     void handleRequest(final ExchangeChannel channel, Request req) throws RemotingException {
+        // 请求id，请求版本
         Response res = new Response(req.getId(), req.getVersion());
         if (req.isBroken()) {
+            // 请求消息异常（反序列化失败），返回请求失败
+
             Object data = req.getData();
 
             String msg;
@@ -89,24 +92,36 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
                 msg = data.toString();
             }
             res.setErrorMessage("Fail to decode request due to: " + msg);
+            // 设置 BAD_REQUEST 状态
             res.setStatus(Response.BAD_REQUEST);
 
+            // 发送响应数据
             channel.send(res);
             return;
         }
+
+        // 获取请求内容 data 字段值，也就是 RpcInvocation 对象
         // find handler by message class.
         Object msg = req.getData();
         try {
+            // 继续向下调用
             CompletionStage<Object> future = handler.reply(channel, msg);
+
             future.whenComplete((appResult, t) -> {
+                // 如果服务方法同步执行会直接拿到结果
+                // 如果服务方法异步执行则会等待，直到收到服务方法执行结果
                 try {
                     if (t == null) {
+                        // 服务方法正常执行并返回
                         res.setStatus(Response.OK);
                         res.setResult(appResult);
                     } else {
+                        // 服务方法执行过程中出现了异常
+                        // 把Throwable转成字符串，返回服务异常响应消息
                         res.setStatus(Response.SERVICE_ERROR);
                         res.setErrorMessage(StringUtils.toString(t));
                     }
+                    // 发送响应数据
                     channel.send(res);
                 } catch (RemotingException e) {
                     logger.warn("Send result to consumer failed, channel is " + channel + ", msg is " + e);
@@ -164,20 +179,29 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
 
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
+
+        // 将DubboChannel转换成HeaderExchangeChannel
         final ExchangeChannel exchangeChannel = HeaderExchangeChannel.getOrAddChannel(channel);
+
         if (message instanceof Request) {
+            // 请求消息处理
+
             // handle request.
             Request request = (Request) message;
             if (request.isEvent()) {
                 handlerEvent(channel, request);
             } else {
                 if (request.isTwoWay()) {
+                    // 如果是双向通信，则需要返回调用结果
                     handleRequest(exchangeChannel, request);
                 } else {
+                    // 如果是单向通信，仅向后调用指定服务即可，无需返回调用结果
                     handler.received(exchangeChannel, request.getData());
                 }
             }
         } else if (message instanceof Response) {
+            // 响应消息处理
+
             handleResponse(channel, (Response) message);
         } else if (message instanceof String) {
             if (isClientSide(channel)) {

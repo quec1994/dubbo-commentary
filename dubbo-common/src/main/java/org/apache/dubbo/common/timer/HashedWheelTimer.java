@@ -336,6 +336,7 @@ public class HashedWheelTimer implements Timer {
      *                               {@linkplain #stop() stopped} already
      */
     public void start() {
+        // 校验当前定时器的状态
         switch (WORKER_STATE_UPDATER.get(this)) {
             case WORKER_STATE_INIT:
                 // 初始化状态，启动工作线程
@@ -344,10 +345,13 @@ public class HashedWheelTimer implements Timer {
                 }
                 break;
             case WORKER_STATE_STARTED:
+                // 已启动状态
                 break;
             case WORKER_STATE_SHUTDOWN:
+                // 已停止状态
                 throw new IllegalStateException("cannot be started once stopped");
             default:
+                // 异常状态
                 throw new Error("Invalid WorkerState");
         }
 
@@ -408,7 +412,13 @@ public class HashedWheelTimer implements Timer {
 
     @Override
     public Timeout newTimeout(TimerTask task, long delay, TimeUnit unit) {
-        // 创建一个超时校验定时任务
+        /*
+         * TimerTask-定时器任务，定义定时任务的核心逻辑；
+         * Timeout-定时任务，定义和定时器相关的通用逻辑；
+         *
+         * 创建并且初始化一个定时任务；
+         * 启动当前定时器，定时器启动后，工作线程workerThread会在后台一直跑，校验定时任务是否到了需要被执行的时候。
+         */
 
         if (task == null) {
             throw new NullPointerException("task");
@@ -417,7 +427,7 @@ public class HashedWheelTimer implements Timer {
             throw new NullPointerException("unit");
         }
 
-        // 等待超时的任务数+1
+        // 定时器中等待超时的任务数+1
         long pendingTimeoutsCount = pendingTimeouts.incrementAndGet();
 
         if (maxPendingTimeouts > 0 && pendingTimeoutsCount > maxPendingTimeouts) {
@@ -427,6 +437,7 @@ public class HashedWheelTimer implements Timer {
                     + "timeouts (" + maxPendingTimeouts + ")");
         }
 
+        // 启动定时器
         start();
 
         // Add the timeout to the timeout queue which will be processed on the next tick.
@@ -441,10 +452,13 @@ public class HashedWheelTimer implements Timer {
         if (delay > 0 && deadline < 0) {
             deadline = Long.MAX_VALUE;
         }
+        // 创建并初始化的定时任务
         HashedWheelTimeout timeout = new HashedWheelTimeout(this, task, deadline);
         // 将超时任务添加到的超时任务队列中，将在下一次工作线程活动时处理。
         // 在处理过程中，所有排队的HashedWheelTimeouts将被添加到正确的HashedWheelBucket中。
         timeouts.add(timeout);
+
+        // 返回定时任务
         return timeout;
     }
 
@@ -705,13 +719,13 @@ public class HashedWheelTimer implements Timer {
         }
 
         public void expire() {
-            // 将超时任务状态置为已超时
+            // 将定时任务状态置为已超时
             if (!compareAndSetState(ST_INIT, ST_EXPIRED)) {
                 return;
             }
 
             try {
-                // 执行超时任务的逻辑
+                // 执行定时器任务
                 task.run(this);
             } catch (Throwable t) {
                 if (logger.isWarnEnabled()) {
@@ -792,28 +806,28 @@ public class HashedWheelTimer implements Timer {
             HashedWheelTimeout timeout = head;
 
             // process all timeouts
-            // 处理所有超时任务
+            // 处理所有定时任务
             while (timeout != null) {
                 // 定义下一待处理节点
                 HashedWheelTimeout next = timeout.next;
                 if (timeout.remainingRounds <= 0) {
                     // 已到处理的时候
 
-                    // 从桶中移除当前超时任务
+                    // 从桶中移除当前定时任务
                     next = remove(timeout);
                     if (timeout.deadline <= deadline) {
-                        // 执行超时任务的处理逻辑
+                        // 执行定时任务的处理逻辑
                         timeout.expire();
                     } else {
                         // The timeout was placed into a wrong slot. This should never happen.
-                        // 超时任务被放入错误的插槽。这不应该发生。
+                        // 定时任务被放入错误的插槽。这不应该发生。
                         throw new IllegalStateException(String.format(
                                 "timeout.deadline (%d) > deadline (%d)", timeout.deadline, deadline));
                     }
                 } else if (timeout.isCancelled()) {
                     // 在等待处理期间被取消
 
-                    // 从桶中移除当前超时任务
+                    // 从桶中移除当前定时任务
                     next = remove(timeout);
                 } else {
                     // 还没到要处理的时候，剩余桶周期数减1
@@ -824,7 +838,7 @@ public class HashedWheelTimer implements Timer {
         }
 
         public HashedWheelTimeout remove(HashedWheelTimeout timeout) {
-            // 在超时任务被处理或取消时移除超时任务，更新桶节点
+            // 在定时任务被处理或取消时移除定时任务，更新桶节点
 
             HashedWheelTimeout next = timeout.next;
             // remove timeout that was either processed or cancelled by updating the linked-list

@@ -94,6 +94,9 @@ public class NettyServerHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        // 接收netty收到的数据
+
+        // 将netty隧道转换为dubbo隧道，统一下传的隧道的dubbo隧道
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.channel(), url, handler);
         handler.received(channel, msg);
     }

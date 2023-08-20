@@ -97,10 +97,9 @@ public class DefaultFuture extends CompletableFuture<Object> {
      * check time out of the future
      */
     private static void timeoutCheck(DefaultFuture future) {
-        // 任务超时运行逻辑
+        // 网络请求超时校验定时器任务
         TimeoutCheckTask task = new TimeoutCheckTask(future.getId());
-        // 创建一个超时校验任务
-        // TIME_OUT_TIMER 中会有一个工作线程一直跑，校验超时任务是否到了需要被执行的时候
+        // 开启超时校验定时任务
         future.timeoutCheckTask = TIME_OUT_TIMER.newTimeout(task, future.getTimeout(), TimeUnit.MILLISECONDS);
     }
 

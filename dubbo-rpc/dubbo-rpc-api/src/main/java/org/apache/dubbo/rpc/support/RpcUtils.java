@@ -258,7 +258,7 @@ public class RpcUtils {
     }
 
     public static boolean isOneway(URL url, Invocation inv) {
-        // 判断是否指定了单向请求，单向请求不需要的远端的返回值，只调用不等待远端方法的执行结果
+        // 判断是否指定了单向通信，单向通信不需要的远端的返回值，只调用不等待远端方法的执行结果
 
         boolean isOneway;
         String config;

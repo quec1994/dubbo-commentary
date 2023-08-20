@@ -137,8 +137,11 @@ public abstract class Wrapper {
         StringBuilder c3 = new StringBuilder("public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws " + InvocationTargetException.class.getName() + "{ ");
 
         c1.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
+        // public void setPropertyValue(Object o, String n, Object v){ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }
         c2.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
+        // public Object getPropertyValue(Object o, String n){ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }
         c3.append(name).append(" w; try{ w = ((").append(name).append(")$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }");
+        // public Object getPropertyValue(Object o, String n){ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); }
 
         Map<String, Class<?>> pts = new HashMap<>(); // <property name, property types>
         Map<String, Method> ms = new LinkedHashMap<>(); // <method desc, Method instance>
@@ -146,7 +149,7 @@ public abstract class Wrapper {
         List<String> dmns = new ArrayList<>(); // declaring method names.
 
         // get all public field.
-        // public 修饰的属性设置和获取的主要动态代理代码
+        // public 修饰的 属性设置/属性获取 的主要动态代理代码
         for (Field f : c.getFields()) {
             String fn = f.getName();
             Class<?> ft = f.getType();
@@ -178,9 +181,10 @@ public abstract class Wrapper {
                                  .collect(Collectors.toList())
                                  .toArray(new Method[] {});
         // get all public method.
-        // 所有 public 修饰的方法
+        // 有非Object.class里的方法
         boolean hasMethod = hasMethods(methods);
         if (hasMethod) {
+            // 给方法名计数，用于判断是否有重载方法
             Map<String, Integer> sameNameMethodCount = new HashMap<>((int) (methods.length / 0.75f) + 1);
             for (Method m : methods) {
                 sameNameMethodCount.compute(m.getName(),
@@ -188,6 +192,7 @@ public abstract class Wrapper {
             }
 
             c3.append(" try{");
+            // public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{
             for (Method m : methods) {
                 //ignore Object's method.
                 // 忽略Object.class里的方法
@@ -195,18 +200,22 @@ public abstract class Wrapper {
                     continue;
                 }
 
-                // 判断是否是要调用的被代理方法
-                // if ("CLASS_METHOD_NAME".equals($2) && $3.length == 2
                 String mn = m.getName();
+                // 动态代理代码作用：判断是否是要调用的被代理方法
+                // if ("CLASS_METHOD_NAME".equals($2) && $3.length == 2
                 c3.append(" if( \"").append(mn).append("\".equals( $2 ) ");
+                // 0: public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )
+                // 1: public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHello((java.lang.String)$4[0]); } if( "sayHelloAsync".equals( $2 )
                 int len = m.getParameterTypes().length;
                 c3.append(" && ").append(" $3.length == ").append(len);
+                // 0: public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1
+                // 1: public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHello((java.lang.String)$4[0]); } if( "sayHelloAsync".equals( $2 )  &&  $3.length == 1
 
                 boolean overload = sameNameMethodCount.get(m.getName()) > 1;
                 if (overload) {
                     // 有方法重载的
                     if (len > 0) {
-                        // 加上方法类型的匹配条件
+                        // 动态代理代码作用：加上方法类型的匹配条件
                         // && $3[1].getName().equals("CLASS_METHOD_PARAMETER_1_TYPE_NAME")
                         //     && $3[2].getName().equals("CLASS_METHOD_PARAMETER_2_TYPE_NAME")
                         for (int l = 0; l < len; l++) {
@@ -217,8 +226,10 @@ public abstract class Wrapper {
                 }
 
                 c3.append(" ) { ");
+                // 0: public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {
+                // 1: public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHello((java.lang.String)$4[0]); } if( "sayHelloAsync".equals( $2 )  &&  $3.length == 1 ) {
 
-                // 调用被代理方法
+                // 动态代理代码作用：调用被代理方法
                 if (m.getReturnType() == Void.TYPE) {
                     // ($w) w.CLASS_METHOD_NAME((CLASS_METHOD_PARAMETER_1_TYPE_NAME) $4[0]
                     //     ,(CLASS_METHOD_PARAMETER_2_TYPE_NAME) $4[1]); return null;
@@ -227,9 +238,13 @@ public abstract class Wrapper {
                     // return ($w) w.CLASS_METHOD_NAME((CLASS_METHOD_PARAMETER_1_TYPE_NAME) $4[0]
                     //     ,(CLASS_METHOD_PARAMETER_2_TYPE_NAME) $4[1]);
                     c3.append(" return ($w)w.").append(mn).append('(').append(args(m.getParameterTypes(), "$4")).append(");");
+                    // 0: public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHello((java.lang.String)$4[0]);
+                    // 1: public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHello((java.lang.String)$4[0]); } if( "sayHelloAsync".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHelloAsync((java.lang.String)$4[0]);
                 }
 
                 c3.append(" }");
+                // 0: public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHello((java.lang.String)$4[0]); }
+                // 1: public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHello((java.lang.String)$4[0]); } if( "sayHelloAsync".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHelloAsync((java.lang.String)$4[0]); }
 
                 mns.add(mn);
                 if (m.getDeclaringClass() == c) {
@@ -237,13 +252,16 @@ public abstract class Wrapper {
                 }
                 ms.put(ReflectUtils.getDesc(m), m);
             }
-            // 在调用被代理方法的时候如果抛出异常，将异常包装成 InvocationTargetException 后抛出
+            // 动态代理代码作用：在调用被代理方法的时候如果抛出异常，将异常包装成 InvocationTargetException 后抛出
             c3.append(" } catch(Throwable e) { ");
             c3.append("     throw new java.lang.reflect.InvocationTargetException(e); ");
             c3.append(" }");
+            // public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHello((java.lang.String)$4[0]); } if( "sayHelloAsync".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHelloAsync((java.lang.String)$4[0]); } } catch(Throwable e) {      throw new java.lang.reflect.InvocationTargetException(e);  }
         }
 
+        // 动态代理代码作用：没有匹配到被代理方法时抛出异常
         c3.append(" throw new " + NoSuchMethodException.class.getName() + "(\"Not found method \\\"\"+$2+\"\\\" in class " + c.getName() + ".\"); }");
+        // public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHello((java.lang.String)$4[0]); } if( "sayHelloAsync".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHelloAsync((java.lang.String)$4[0]); } } catch(Throwable e) {      throw new java.lang.reflect.InvocationTargetException(e);  } throw new org.apache.dubbo.common.bytecode.NoSuchMethodException("Not found method \""+$2+"\" in class org.apache.dubbo.demo.DemoService."); }
 
         // deal with get/set method.
         // 通过方法设置和获取属性的主要动态代理代码
@@ -275,22 +293,35 @@ public abstract class Wrapper {
                 pts.put(pn, pt);
             }
         }
+        // 动态代理代码作用：没有匹配到属性赋值方法时抛出异常
         c1.append(" throw new " + NoSuchPropertyException.class.getName() + "(\"Not found property \\\"\"+$2+\"\\\" field or setter method in class " + c.getName() + ".\"); }");
+        // public void setPropertyValue(Object o, String n, Object v){ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } throw new org.apache.dubbo.common.bytecode.NoSuchPropertyException("Not found property \""+$2+"\" field or setter method in class org.apache.dubbo.demo.DemoService."); }
+
+        // 动态代理代码作用：没有匹配到属性获取方法时抛出异常
         c2.append(" throw new " + NoSuchPropertyException.class.getName() + "(\"Not found property \\\"\"+$2+\"\\\" field or getter method in class " + c.getName() + ".\"); }");
+        // public Object getPropertyValue(Object o, String n){ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } throw new org.apache.dubbo.common.bytecode.NoSuchPropertyException("Not found property \""+$2+"\" field or getter method in class org.apache.dubbo.demo.DemoService."); }
 
         // make class
-        // 构造类的代码
+        // 构造代理类的字节码生成器
         long id = WRAPPER_CLASS_COUNTER.getAndIncrement();
         ClassGenerator cc = ClassGenerator.newInstance(cl);
+        // 代理类名称
         cc.setClassName((Modifier.isPublic(c.getModifiers()) ? Wrapper.class.getName() : c.getName() + "$sw") + id);
+        // 代理类父类
         cc.setSuperClass(Wrapper.class);
 
         cc.addDefaultConstructor();
+        // 代理类属性：被代理类属性名称数组
         cc.addField("public static String[] pns;"); // property name array.
+        // 代理类属性：被代理类属性类型映射
         cc.addField("public static " + Map.class.getName() + " pts;"); // property type map.
+        // 代理类属性：被代理类所有方法名称数组
         cc.addField("public static String[] mns;"); // all method name array.
+        // 代理类属性：被代理类公开声明的方法名称数组
         cc.addField("public static String[] dmns;"); // declared method name array.
+        // 被代理类所有方法参数类型数组
         for (int i = 0, len = ms.size(); i < len; i++) {
+            // 代理类属性：被代理类方法参数类型数组
             cc.addField("public static Class[] mts" + i + ";");
         }
 
@@ -300,12 +331,17 @@ public abstract class Wrapper {
         cc.addMethod("public String[] getMethodNames(){ return mns; }");
         cc.addMethod("public String[] getDeclaredMethodNames(){ return dmns; }");
         cc.addMethod(c1.toString());
+        // public void setPropertyValue(Object o, String n, Object v){ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } throw new org.apache.dubbo.common.bytecode.NoSuchPropertyException("Not found property \""+$2+"\" field or setter method in class org.apache.dubbo.demo.DemoService."); }
         cc.addMethod(c2.toString());
+        // public Object getPropertyValue(Object o, String n){ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } throw new org.apache.dubbo.common.bytecode.NoSuchPropertyException("Not found property \""+$2+"\" field or getter method in class org.apache.dubbo.demo.DemoService."); }
         cc.addMethod(c3.toString());
+        // public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException{ org.apache.dubbo.demo.DemoService w; try{ w = ((org.apache.dubbo.demo.DemoService)$1); }catch(Throwable e){ throw new IllegalArgumentException(e); } try{ if( "sayHello".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHello((java.lang.String)$4[0]); } if( "sayHelloAsync".equals( $2 )  &&  $3.length == 1 ) {  return ($w)w.sayHelloAsync((java.lang.String)$4[0]); } } catch(Throwable e) {      throw new java.lang.reflect.InvocationTargetException(e);  } throw new org.apache.dubbo.common.bytecode.NoSuchMethodException("Not found method \""+$2+"\" in class org.apache.dubbo.demo.DemoService."); }
 
         try {
-            // 构造类的字节码
+            // 生成代理类字节码
             Class<?> wc = cc.toClass();
+
+            // 给代理类属性赋值
             // setup static field.
             wc.getField("pts").set(null, pts);
             wc.getField("pns").set(null, pts.keySet().toArray(new String[0]));
@@ -315,7 +351,8 @@ public abstract class Wrapper {
             for (Method m : ms.values()) {
                 wc.getField("mts" + ix++).set(null, m.getParameterTypes());
             }
-            // 实例化类
+
+            // 实例化代理类
             return (Wrapper) wc.getDeclaredConstructor().newInstance();
         } catch (RuntimeException e) {
             throw e;

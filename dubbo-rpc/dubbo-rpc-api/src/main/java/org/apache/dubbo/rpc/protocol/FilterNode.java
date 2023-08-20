@@ -58,13 +58,13 @@ class FilterNode<T> implements Invoker<T>{
     public Result invoke(Invocation invocation) throws RpcException {
         Result asyncResult;
         try {
-            // 得到一个异步结果
+            // 调用过滤器，然后得到一个异步返回值
             asyncResult = filter.invoke(next, invocation);
         } catch (Exception e) {
             // 服务调用执行异常时，回调监听过滤器的onError方法
+
             if (filter instanceof ListenableFilter) {
-                // 使用 ListenableFilter 注册的 ListenerFilter
-                // 个性化使用，需手动注册，可以针对某个服务某个方法做监听
+                // 一个RPC调用一个监听器实例，手动注册
                 ListenableFilter listenableFilter = ((ListenableFilter) filter);
                 try {
                     Filter.Listener listener = listenableFilter.listener(invocation);
@@ -75,8 +75,7 @@ class FilterNode<T> implements Invoker<T>{
                     listenableFilter.removeListener(invocation);
                 }
             } else if (filter instanceof Filter.Listener) {
-                // 直接在 ProtocolFilterWrapper.buildInvokerChain 时添加的 ListenerFilter
-                // 针对所有的服务调用做监听
+                // 所有的RPC调用共用一个监听器实例，ProtocolFilterWrapper.buildInvokerChain 方法自动注册
                 Filter.Listener listener = (Filter.Listener) filter;
                 listener.onError(e, invoker, invocation);
             }
@@ -86,9 +85,9 @@ class FilterNode<T> implements Invoker<T>{
         }
         return asyncResult.whenCompleteWithContext((r, t) -> {
             // 服务调用执行完了之后，回调监听过滤器的onResponse或onError方法
+
             if (filter instanceof ListenableFilter) {
-                // 使用 ListenableFilter 注册的 ListenerFilter
-                // 个性化使用，需手动注册，可以针对某个服务某个方法做监听
+                // 一个RPC调用一个监听器实例，手动注册
                 ListenableFilter listenableFilter = ((ListenableFilter) filter);
                 Filter.Listener listener = listenableFilter.listener(invocation);
                 try {
@@ -103,8 +102,7 @@ class FilterNode<T> implements Invoker<T>{
                     listenableFilter.removeListener(invocation);
                 }
             } else if (filter instanceof Filter.Listener) {
-                // 直接在 ProtocolFilterWrapper.buildInvokerChain 时添加的 ListenerFilter
-                // 针对所有的服务调用做监听
+                // 所有的RPC调用共用一个监听器实例，ProtocolFilterWrapper.buildInvokerChain 方法自动注册
                 Filter.Listener listener = (Filter.Listener) filter;
                 if (t == null) {
                     listener.onResponse(r, invoker, invocation);

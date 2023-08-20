@@ -74,6 +74,7 @@ public class ContextFilter implements Filter, Filter.Listener {
         UNLOADING_KEYS.add(TIMEOUT_ATTACHMENT_KEY);
 
         // Remove async property to avoid being passed to the following invoke chain.
+        // 删除async属性以避免传递到之后的调用链。
         UNLOADING_KEYS.add(ASYNC_KEY);
         UNLOADING_KEYS.add(TAG_KEY);
         UNLOADING_KEYS.add(FORCE_USE_TAG);
@@ -83,10 +84,14 @@ public class ContextFilter implements Filter, Filter.Listener {
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         Map<String, Object> attachments = invocation.getObjectAttachments();
         if (attachments != null) {
+            // 移除指定key的invocation附加参数
+
             Map<String, Object> newAttach = new HashMap<>(attachments.size());
             for (Map.Entry<String, Object> entry : attachments.entrySet()) {
                 String key = entry.getKey();
                 if (!UNLOADING_KEYS.contains(key)) {
+                    // 非指定key的参数
+
                     newAttach.put(key, entry.getValue());
                 }
             }
@@ -94,10 +99,15 @@ public class ContextFilter implements Filter, Filter.Listener {
         }
 
         RpcContext context = RpcContext.getContext();
+        // 在上下文中放入invoker
         context.setInvoker(invoker)
+                // 在上下文中放入invocation
                 .setInvocation(invocation)
 //                .setAttachments(attachments)  // merged from dubbox
+                // 在上下文中放入localAddress
                 .setLocalAddress(invoker.getUrl().getHost(), invoker.getUrl().getPort());
+
+        // 在上下文中放入remoteApplicationName
         String remoteApplication = (String) invocation.getAttachment(REMOTE_APPLICATION_KEY);
         if (StringUtils.isNotEmpty(remoteApplication)) {
             context.setRemoteApplicationName(remoteApplication);
@@ -105,14 +115,20 @@ public class ContextFilter implements Filter, Filter.Listener {
             context.setRemoteApplicationName((String) context.getAttachment(REMOTE_APPLICATION_KEY));
         }
 
+        // 在上下文中放入values.timeout-countdown
+        // attachments._TO，根据倒计时生成的动态超时时间
         long timeout = RpcUtils.getTimeout(invocation, -1);
         if (timeout != -1) {
+            // 倒计时对象
             context.set(TIME_COUNTDOWN_KEY, TimeoutCountDown.newCountDown(timeout, TimeUnit.MILLISECONDS));
         }
 
         // merged from dubbox
         // we may already added some attachments into RpcContext before this filter (e.g. in rest protocol)
+        // 在这个过滤器之前，我们可能已经在RpcContext中添加了一些附件（例如，在rest协议中）
         if (attachments != null) {
+            // 在上下文中放入移除指定key后的invocation附加参数
+
             if (context.getObjectAttachments() != null) {
                 context.getObjectAttachments().putAll(attachments);
             } else {
@@ -121,15 +137,19 @@ public class ContextFilter implements Filter, Filter.Listener {
         }
 
         if (invocation instanceof RpcInvocation) {
+            // 在invocation中放入invoker
             ((RpcInvocation) invocation).setInvoker(invoker);
         }
 
         try {
+            // 设置不允许清除上下文
             context.clearAfterEachInvoke(false);
             return invoker.invoke(invocation);
         } finally {
+            // 设置允许清除上下文
             context.clearAfterEachInvoke(true);
             // IMPORTANT! For async scenario, we must remove context from current thread, so we always create a new RpcContext for the next invoke for the same thread.
+            // 重要！对于异步场景，我们必须从当前线程中删除上下文，所以我们总是为同一线程的下一次调用创建一个新的RpcContext。
             RpcContext.removeContext(true);
             RpcContext.removeServerContext();
         }

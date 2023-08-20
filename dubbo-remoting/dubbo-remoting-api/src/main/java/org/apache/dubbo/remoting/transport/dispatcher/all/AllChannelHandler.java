@@ -60,7 +60,7 @@ public class AllChannelHandler extends WrappedChannelHandler {
         // 获取执行器（线程池）
         ExecutorService executor = getPreferredExecutorService(message);
         try {
-            // 交给线程池去处理message
+            // 把接收到的Message封装为一个ChannelEventRunnable对象，交给线程池进行处理
             executor.execute(new ChannelEventRunnable(channel, handler, ChannelState.RECEIVED, message));
         } catch (Throwable t) {
         	if(message instanceof Request && t instanceof RejectedExecutionException){

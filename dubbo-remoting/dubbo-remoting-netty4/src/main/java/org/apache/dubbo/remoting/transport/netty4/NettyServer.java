@@ -76,10 +76,15 @@ public class NettyServer extends AbstractServer implements RemotingServer {
         // you can customize name and type of client thread pool by THREAD_NAME_KEY and THREADPOOL_KEY in CommonConstants.
         // the handler will be wrapped: MultiMessageHandler->HeartbeatHandler->handler
 
-        // 设置线程名，wrap方法会返回一个MultiMessageHandler，这个Handler会被设置到NettyServer父类AbstractPeer的handler属性上
+        // 设置线程名
+
+        // wrap方法会返回一个MultiMessageHandler，这个Handler会被设置到NettyServer父类AbstractPeer的handler属性上
         // 而当netty接收到数据时，会调用AbstractPeer的received方法，继而调用AbstractPeer的handler属性的received方法
         // 所以MultiMessageHandler就是负责处理请求
         // MultiMessageHandler->HeartbeatHandler->AllChannelHandler->handler
+
+        // 父类AbstractServer实例化的时候会调用doOpen方法启动netty服务器，监听消费者端的请求
+
         super(ExecutorUtil.setThreadName(url, SERVER_THREAD_POOL_NAME), ChannelHandlers.wrap(handler, url));
     }
 
@@ -90,17 +95,23 @@ public class NettyServer extends AbstractServer implements RemotingServer {
      */
     @Override
     protected void doOpen() throws Throwable {
+        // 启动netty服务器，监听消费者端的请求
+
         bootstrap = new ServerBootstrap();
 
+        // 主线程池
         bossGroup = createBossGroup();
+        // 工作线程池
         workerGroup = createWorkerGroup();
 
         final NettyServerHandler nettyServerHandler = createNettyServerHandler();
         channels = nettyServerHandler.getChannels();
 
+        // 初始化netty引导
         initServerBootstrap(nettyServerHandler);
 
         // bind
+        // 绑定端口，开始监听请求
         ChannelFuture channelFuture = bootstrap.bind(getBindAddress());
         channelFuture.syncUninterruptibly();
         channel = channelFuture.channel();
@@ -108,10 +119,12 @@ public class NettyServer extends AbstractServer implements RemotingServer {
     }
 
     protected EventLoopGroup createBossGroup() {
+        // 可以设置netty事件循环组是否基于linux的epoll功能工作
         return NettyEventLoopFactory.eventLoopGroup(1, "NettyServerBoss");
     }
 
     protected EventLoopGroup createWorkerGroup() {
+        // 可以设置netty事件循环组是否基于linux的epoll功能工作
         return NettyEventLoopFactory.eventLoopGroup(
                 getUrl().getPositiveParameter(IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS),
                 "NettyServerWorker");
@@ -135,15 +148,19 @@ public class NettyServer extends AbstractServer implements RemotingServer {
                     protected void initChannel(SocketChannel ch) throws Exception {
                         // FIXME: should we use getTimeout()?
                         int idleTimeout = UrlUtils.getIdleTimeout(getUrl());
+                        // 编解码器
                         NettyCodecAdapter adapter = new NettyCodecAdapter(getCodec(), getUrl(), NettyServer.this);
                         if (getUrl().getParameter(SSL_ENABLED_KEY, false)) {
                             ch.pipeline().addLast("negotiation",
                                     SslHandlerInitializer.sslServerHandler(getUrl(), nettyServerHandler));
                         }
                         ch.pipeline()
+                                // 解码器
                                 .addLast("decoder", adapter.getDecoder())
+                                // 编码器
                                 .addLast("encoder", adapter.getEncoder())
                                 .addLast("server-idle-handler", new IdleStateHandler(0, 0, idleTimeout, MILLISECONDS))
+                                // 请求处理器
                                 .addLast("handler", nettyServerHandler);
                     }
                 });
@@ -212,6 +229,7 @@ public class NettyServer extends AbstractServer implements RemotingServer {
 
     @Override
     public boolean canHandleIdle() {
+        // NettyServer自己有空闲处理能力
         return true;
     }
 

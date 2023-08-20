@@ -104,10 +104,14 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
 
     @Override
     public Object decode(Channel channel, InputStream input) throws IOException {
+        /* 按Dubbo协议的数据格式，解析当前请求的path，version，方法，方法参数等等 */
+
         ObjectInput in = CodecSupport.getSerialization(channel.getUrl(), serializationType)
                 .deserialize(channel.getUrl(), input);
         this.put(SERIALIZATION_ID_KEY, serializationType);
 
+        // dubbo 公共附加参数
+        // RpcInvocation.attachments
         String dubboVersion = in.readUTF();
         request.setVersion(dubboVersion);
         setAttachment(DUBBO_VERSION_KEY, dubboVersion);
@@ -117,12 +121,18 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
         String version = in.readUTF();
         setAttachment(VERSION_KEY, version);
 
+        // 要执行的方法的方法名
+        // RpcInvocation.methodName
         setMethodName(in.readUTF());
 
+        // 方法参数类型描述信息
+        // RpcInvocation.parameterTypesDesc
         String desc = in.readUTF();
         setParameterTypesDesc(desc);
 
         try {
+            // 要执行的方法的方法参数类型集合
+            // RpcInvocation.parameterTypes
             if (ConfigurationUtils.getSystemConfiguration().getBoolean(SERIALIZATION_SECURITY_CHECK_KEY, false)) {
                 CodecSupport.checkSerialization(path, version, serializationType);
             }
@@ -138,6 +148,9 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
                     MethodDescriptor methodDescriptor = serviceDescriptor.getMethod(getMethodName(), desc);
                     if (methodDescriptor != null) {
                         pts = methodDescriptor.getParameterClasses();
+
+                        // 要执行的方法的方法返回值类型集合
+                        // RpcInvocation.returnTypes
                         this.setReturnTypes(methodDescriptor.getReturnTypes());
                     }
                 }
@@ -162,6 +175,8 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
             }
             setParameterTypes(pts);
 
+            // 客户端请求携带的附加参数
+            // RpcInvocation.attachments
             Map<String, Object> map = in.readAttachments();
             if (map != null && map.size() > 0) {
                 Map<String, Object> attachment = getObjectAttachments();
@@ -172,12 +187,17 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
                 setObjectAttachments(attachment);
             }
 
+            // 要执行的方法的方法参数集合
+            // RpcInvocation.arguments
             //decode argument ,may be callback
             for (int i = 0; i < args.length; i++) {
                 args[i] = decodeInvocationArgument(channel, this, pts, i, args[i]);
             }
 
             setArguments(args);
+
+            // 服务唯一名称
+            // RpcInvocation.targetServiceUniqueName
             String targetServiceName = buildKey(getAttachment(PATH_KEY),
                     getAttachment(GROUP_KEY),
                     getAttachment(VERSION_KEY));

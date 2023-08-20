@@ -47,3 +47,6 @@ compiler/.gradle/*
 
 # protobuf
 dubbo-serialization/dubbo-serialization-protobuf/build/*
+
+# diagrams
+diagrams/.$*

@@ -72,14 +72,19 @@ public class GenericFilter implements Filter, Filter.Listener {
 
     @Override
     public Result invoke(Invoker<?> invoker, Invocation inv) throws RpcException {
+        /* 将发送过来的泛化调用参数转换成实际服务调用参数 */
+
         if ((inv.getMethodName().equals($INVOKE) || inv.getMethodName().equals($INVOKE_ASYNC))
                 && inv.getArguments() != null
                 && inv.getArguments().length == 3
                 && !GenericService.class.isAssignableFrom(invoker.getInterface())) {
+            // 泛化调用参数
+
             String name = ((String) inv.getArguments()[0]).trim();
             String[] types = (String[]) inv.getArguments()[1];
             Object[] args = (Object[]) inv.getArguments()[2];
             try {
+                // 被调用方法
                 Method method = ReflectUtils.findMethodByMethodSignature(invoker.getInterface(), name, types);
                 Class<?>[] params = method.getParameterTypes();
                 if (args == null) {
@@ -94,23 +99,32 @@ public class GenericFilter implements Filter, Filter.Listener {
                     throw new RpcException("GenericFilter#invoke args.length != types.length, please check your "
                             + "params");
                 }
+
+                // 根据 attachments.generic 的值
                 String generic = inv.getAttachment(GENERIC_KEY);
 
                 if (StringUtils.isBlank(generic)) {
                     generic = RpcContext.getContext().getAttachment(GENERIC_KEY);
                 }
 
+                // 根据 attachments.generic 的值解析方法参数集合
                 if (StringUtils.isEmpty(generic)
                         || ProtocolUtils.isDefaultGenericSerialization(generic)
                         || ProtocolUtils.isGenericReturnRawResult(generic)) {
                     try {
+                        // attachments.generic 的值为 空、true、raw.return
+
                         args = PojoUtils.realize(args, params, method.getGenericParameterTypes());
                     } catch (IllegalArgumentException e) {
                         throw new RpcException(e);
                     }
                 } else if (ProtocolUtils.isGsonGenericSerialization(generic)) {
+                    // attachments.generic 的值为 gson
+
                     args = getGsonGenericArgs(args, method.getGenericParameterTypes());
                 } else if (ProtocolUtils.isJavaGenericSerialization(generic)) {
+                    // attachments.generic 的值为 nativejava
+
                     Configuration configuration = ApplicationModel.getEnvironment().getConfiguration();
                     if (!configuration.getBoolean(CommonConstants.ENABLE_NATIVE_JAVA_GENERIC_SERIALIZE, false)) {
                         String notice = "Trigger the safety barrier! " +
@@ -143,6 +157,8 @@ public class GenericFilter implements Filter, Filter.Listener {
                         }
                     }
                 } else if (ProtocolUtils.isBeanGenericSerialization(generic)) {
+                    // attachments.generic 的值为 bean
+
                     for (int i = 0; i < args.length; i++) {
                         if (args[i] instanceof JavaBeanDescriptor) {
                             args[i] = JavaBeanSerializeUtil.deserialize((JavaBeanDescriptor) args[i]);
@@ -157,6 +173,8 @@ public class GenericFilter implements Filter, Filter.Listener {
                         }
                     }
                 } else if (ProtocolUtils.isProtobufGenericSerialization(generic)) {
+                    // attachments.generic 的值为 protobuf-json
+
                     // as proto3 only accept one protobuf parameter
                     if (args.length == 1 && args[0] instanceof String) {
                         try (UnsafeByteArrayInputStream is =
@@ -178,6 +196,7 @@ public class GenericFilter implements Filter, Filter.Listener {
                     }
                 }
 
+                // 转换成实际服务调用参数
                 RpcInvocation rpcInvocation =
                         new RpcInvocation(method, invoker.getInterface().getName(), invoker.getUrl().getProtocolServiceKey(), args,
                                 inv.getObjectAttachments(), inv.getAttributes());

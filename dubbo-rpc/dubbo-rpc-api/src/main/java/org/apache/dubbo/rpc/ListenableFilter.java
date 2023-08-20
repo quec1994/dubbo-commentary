@@ -25,6 +25,10 @@ import java.util.concurrent.ConcurrentMap;
  * <p>
  * If you do not want to share Listener instance between RPC calls. You can use ListenableFilter
  * to keep a 'one Listener each RPC call' model.
+ * <p>
+ * 建议直接实现Filter.Listener进行回调注册，检查默认实现，例如{@link org.apache.dubbo.rpc.filter.ExceptionFilter}。
+ * <p>
+ * 如果您不想在RPC调用之间共享监听器实例。您可以使用ListenableFilter来保留“每个RPC调用一个监听器”模型。
  */
 public abstract class ListenableFilter implements Filter {
 

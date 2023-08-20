@@ -74,16 +74,17 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
         try {
-            // 执行服务，得到一个接口，可能是一个CompletableFuture(表示异步调用)，可能是一个正常的服务执行结果（同步调用）
-            // 如果是同步调用会阻塞，如果是异步调用不会阻塞
+            // 调用服务接口动态代理类的方法，得到一个返回值对象
+            // 可能是一个CompletableFuture(表示异步返回结果)，也可能是一个正常的方法返回值（同步返回结果）
             Object value = doInvoke(proxy, invocation.getMethodName(), invocation.getParameterTypes(), invocation.getArguments());
-            // 将同步调用的服务执行结果封装为CompletableFuture类型
+            // 将同步返回结果的方法返回值封装为CompletableFuture类型
             CompletableFuture<Object> future = wrapWithFuture(value);
-            // 设置一个回调，如果是异步调用，那么服务执行完成后将执行这里的回调
+            // 设置一个回调
             CompletableFuture<AppResponse> appResponseFuture = future.handle((obj, t) -> {
+                // 不管服务的方法是同步返回结果还是异步返回结果，方法执行完成后的结果都将在这个回调方法中封装成AppResponse返回
                 AppResponse result = new AppResponse(invocation);
                 if (t != null) {
-                    // 如果是异步服务，那么服务执行之后的异常会在此处封装到AppResponse中
+                    // 服务方法的异步执行部分出现了异常
                     if (t instanceof CompletionException) {
                         result.setException(t.getCause());
                     } else {
@@ -94,16 +95,18 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
                 }
                 return result;
             });
-            // 当服务执行完后，将服务之后将结果或异常设置到AsyncRpcResult中
+            // 当服务的方法执行完后，将服务方法返回值或异常设置到AsyncRpcResult中
             return new AsyncRpcResult(appResponseFuture, invocation);
         } catch (InvocationTargetException e) {
-            // 不管同步服务还是异步服务，如果在执行服务实现类方法时抛出的异常都会被包装成 InvocationTargetException
+            // 执行服务实现类方法时出异常了
+
+            // 不管服务的方法是同步返回结果还是异步返回结果，在代理类的代理方法里面会做catch异常，
+            // 因此在执行服务方法时抛出的异常都会被包装成 InvocationTargetException
 
             if (RpcContext.getContext().isAsyncStarted() && !RpcContext.getContext().stopAsync()) {
                 logger.error("Provider async started, but got an exception from the original method, cannot write the exception back to consumer because an async result may have returned the new thread.", e);
             }
-            // 执行服务实现类方法时如果出异常了，会在此处将异常信息封装为一个AsyncRpcResult然后返回
-            // 假设抛的NullPointException，那么会把这个异常包装为一个AsyncRpcResult对象
+            // 将异常信息封装为一个AsyncRpcResult然后返回
             return AsyncRpcResult.newDefaultAsyncResult(null, e.getTargetException(), invocation);
         } catch (Throwable e) {
             // 执行服务过程中的所有非服务实现类方法抛出的异常都会包装为RpcException进行抛出
@@ -113,10 +116,13 @@ public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
 
     private CompletableFuture<Object> wrapWithFuture(Object value) {
         if (RpcContext.getContext().isAsyncStarted()) {
+            // 如果设置了方法异步执行，从异步上下文中拿future
             return ((AsyncContextImpl) (RpcContext.getContext().getAsyncContext())).getInternalFuture();
         } else if (value instanceof CompletableFuture) {
+            // 如果方法为异步返回结果，直接返回value
             return (CompletableFuture<Object>) value;
         }
+        // 如果方法是同步返回结果，那么将方法返回值包装成异步返回结果
         return CompletableFuture.completedFuture(value);
     }
 

@@ -66,7 +66,7 @@ public class HeaderExchangeServer implements ExchangeServer {
     public HeaderExchangeServer(RemotingServer server) {
         Assert.notNull(server, "server == null");
         this.server = server;
-        // 启动定义关闭Channel的Task
+        // 启动自动关闭空闲Channel的定时任务
         startIdleCheckTask(getUrl());
     }
 
@@ -260,19 +260,22 @@ public class HeaderExchangeServer implements ExchangeServer {
     }
 
     private void startIdleCheckTask(URL url) {
+        // NettyServer自己有空闲处理能力
+
         if (!server.canHandleIdle()) {
-            // 底层NettyServer自己有心跳机制，那么上层的ExchangeServer就不用开启心跳任务了
+            // 下层server没有空闲处理能力，开启统一校验定时任务
 
             AbstractTimerTask.ChannelProvider cp = () -> unmodifiableCollection(HeaderExchangeServer.this.getChannels());
             int idleTimeout = getIdleTimeout(url);
             long idleTimeoutTick = calculateLeastDuration(idleTimeout);
-            // 定义关闭Channel的Task
+            // 关闭空闲隧道的定时器任务
             CloseTimerTask closeTimerTask = new CloseTimerTask(cp, idleTimeoutTick, idleTimeout);
             this.closeTimerTask = closeTimerTask;
 
             // init task and start timer.
-            // 定时运行closeTimerTask
+            // 初始化任务和启动定时器
             IDLE_CHECK_TIMER.newTimeout(closeTimerTask, idleTimeoutTick, TimeUnit.MILLISECONDS);
         }
+        // 如果下层server自己有空闲处理能力，就不用开启统一的空闲处理任务了
     }
 }
