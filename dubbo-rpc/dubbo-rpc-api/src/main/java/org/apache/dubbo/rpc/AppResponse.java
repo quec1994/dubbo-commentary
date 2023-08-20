@@ -78,7 +78,10 @@ public class AppResponse implements Result {
 
     @Override
     public Object recreate() throws Throwable {
+        // 重新构建方法执行结果
+
         if (exception != null) {
+            // 远程方法执行出现异常
             // fix issue#619
             try {
                 Object stackTrace = InvokerInvocationHandler.stackTraceField.get(exception);
@@ -88,8 +91,10 @@ public class AppResponse implements Result {
             } catch (Exception e) {
                 // ignore
             }
+            // 抛出异常
             throw exception;
         }
+        // 返回远程方法返回值
         return result;
     }
 

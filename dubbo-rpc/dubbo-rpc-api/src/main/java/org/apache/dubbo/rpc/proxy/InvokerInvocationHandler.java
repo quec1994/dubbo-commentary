@@ -88,7 +88,7 @@ public class InvokerInvocationHandler implements InvocationHandler {
         } else if (parameterTypes.length == 1 && "equals".equals(methodName)) {
             return invoker.equals(args[0]);
         }
-        // 构建调用远程服务的参数
+        // 构建远程服务调用参数
         RpcInvocation rpcInvocation = new RpcInvocation(method, invoker.getInterface().getName(), protocolServiceKey, args);
         String serviceKey = invoker.getUrl().getServiceKey();
         rpcInvocation.setTargetServiceUniqueName(serviceKey);
