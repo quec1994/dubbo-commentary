@@ -186,12 +186,15 @@ public abstract class DynamicDirectory<T> extends AbstractDirectory<T> implement
         }
 
         if (multiGroup) {
+            // 如果配置了多group，直接返回所有invoker，不做路由筛选
             return this.invokers == null ? Collections.emptyList() : this.invokers;
         }
 
         List<Invoker<T>> invokers = null;
         try {
             // Get invokers from cache, only runtime routers will be executed.
+            // 从缓存中获取invokers，只在运行时执行routers。
+
             // 调用路由链筛选出适合的服务Invoker
             invokers = routerChain.route(getConsumerUrl(), invocation);
         } catch (Throwable t) {

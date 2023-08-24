@@ -34,9 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.dubbo.remoting.Constants.HEARTBEAT_CHECK_TICK;
-import static org.apache.dubbo.remoting.Constants.LEAST_HEARTBEAT_DURATION;
-import static org.apache.dubbo.remoting.Constants.TICKS_PER_WHEEL;
+import static org.apache.dubbo.remoting.Constants.*;
 import static org.apache.dubbo.remoting.utils.UrlUtils.getHeartbeat;
 import static org.apache.dubbo.remoting.utils.UrlUtils.getIdleTimeout;
 
@@ -189,13 +187,24 @@ public class HeaderExchangeClient implements ExchangeClient {
     }
 
     private void startHeartBeatTask(URL url) {
+
+        // 首先判断下层client是否有空闲处理能力
+        // 如果下层client自己有空闲处理能力，就不用开启统一的心跳定时任务了
+
+        // NettyClient自己有心跳消息定时发送
+        // org.apache.dubbo.remoting.transport.netty4.NettyClientHandler.userEventTriggered
         if (!client.canHandleIdle()) {
+            // 下层client没有空闲处理能力，开启统一心跳定时任务
             AbstractTimerTask.ChannelProvider cp = () -> Collections.singletonList(HeaderExchangeClient.this);
             int heartbeat = getHeartbeat(url);
             long heartbeatTick = calculateLeastDuration(heartbeat);
+            // 心跳定时器任务，发送心跳消息
             this.heartBeatTimerTask = new HeartbeatTimerTask(cp, heartbeatTick, heartbeat);
+            // 开启心跳定时任务
             IDLE_CHECK_TIMER.newTimeout(heartBeatTimerTask, heartbeatTick, TimeUnit.MILLISECONDS);
         }
+
+
     }
 
     private void startReconnectTask(URL url) {

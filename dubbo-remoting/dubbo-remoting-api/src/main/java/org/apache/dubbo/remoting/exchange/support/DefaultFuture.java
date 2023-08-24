@@ -73,6 +73,8 @@ public class DefaultFuture extends CompletableFuture<Object> {
     private ExecutorService executor;
 
     public ExecutorService getExecutor() {
+        // 如果本次远程方法调用是同步执行模式，executor是无线程执行器（ThreadlessExecutor），
+        // 响应消息将直接委托给等待响应消息返回的线程处理，也就是发起调用的线程处理
         return executor;
     }
 
@@ -124,7 +126,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
             ((ThreadlessExecutor) executor).setWaitingFuture(future);
         }
         // timeout check
-        // 远端方法调用超时校验
+        // 远程方法调用超时校验
         timeoutCheck(future);
         return future;
     }

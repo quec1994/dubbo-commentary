@@ -49,4 +49,4 @@ compiler/.gradle/*
 dubbo-serialization/dubbo-serialization-protobuf/build/*
 
 # diagrams
-diagrams/.$*
+diagrams/*.bkp

@@ -166,13 +166,15 @@ final class NettyChannel extends AbstractChannel {
         boolean success = true;
         int timeout = 0;
         try {
+            // 非阻塞式发送数据，将消息放入 IO 队列，即刻返回
             ChannelFuture future = channel.writeAndFlush(message);
-            // sent="true" 等待消息发出完成，消息发送失败将抛出异常。
-            // sent="false" 不等待消息发出完成，将消息放入 IO 队列，即刻返回。
+            // sent="true" 等待消息发出完成，消息发送失败将抛出异常
+            // sent="false" 不等待消息发出完成，立即返回
             if (sent) {
                 // wait timeout ms
                 // 等待超时 ms
                 timeout = getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
+                // 等待消息发送结果
                 success = future.await(timeout);
             }
             Throwable cause = future.cause();

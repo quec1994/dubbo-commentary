@@ -46,6 +46,7 @@ import static org.apache.dubbo.common.utils.ReflectUtils.defaultReturn;
  * {@link #getValue()} and {@link #getException()} are all inherited from {@link Result} interface, implementing them are mainly
  * for compatibility consideration. Because many legacy {@link Filter} implementation are most possibly to call getValue directly.
  *
+ * <p>
  * 这个类表示一个未完成的RPC调用，它将保存该调用的一些上下文信息，例如RpcContext和Invocation，
  * 这样当调用完成并返回结果时，它可以保证所有上下文都恢复为与调用任何回调之前进行调用时相同。
  * <p>
@@ -63,6 +64,8 @@ public class AsyncRpcResult implements Result {
     /**
      * RpcContext may already have been changed when callback happens, it happens when the same thread is used to execute another RPC call.
      * So we should keep the reference of current RpcContext instance and restore it before callback being executed.
+     * <p> 当回调发生时，RpcContext可能已经更改，当同一线程用于执行另一个RPC调用时，就会发生这种情况。 </p>
+     * <p> 因此，我们应该保留当前RpcContext实例的引用，并在执行回调之前将其还原。 </p>
      */
     private RpcContext storedContext;
     private RpcContext storedServerContext;
@@ -92,7 +95,7 @@ public class AsyncRpcResult implements Result {
     /**
      * CompletableFuture can only be completed once, so try to update the result of one completed CompletableFuture will
      * has no effect. To avoid this problem, we check the complete status of this future before update it's value.
-     *
+     * <p>
      * But notice that trying to give an uncompleted CompletableFuture a new specified value may face a race condition,
      * because the background thread watching the real result will also change the status of this CompletableFuture.
      * The result is you may lose the value you expected to set.
@@ -186,6 +189,9 @@ public class AsyncRpcResult implements Result {
     @Override
     public Result get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
         if (executor != null && executor instanceof ThreadlessExecutor) {
+            // 如果本次远程方法调用是同步执行模式，executor是无线程执行器（ThreadlessExecutor），
+            // 响应消息将直接委托给等待响应消息返回的线程处理，也就是发起调用的线程处理
+
             ThreadlessExecutor threadlessExecutor = (ThreadlessExecutor) executor;
             threadlessExecutor.waitAndDrain();
         }
@@ -293,18 +299,22 @@ public class AsyncRpcResult implements Result {
 
     /**
      * tmp context to use when the thread switch to Dubbo thread.
+     * <p> 当线程切换到Dubbo线程时要使用的tmp上下文。 </p>
      */
     private RpcContext tmpContext;
 
     private RpcContext tmpServerContext;
     private BiConsumer<Result, Throwable> beforeContext = (appResponse, t) -> {
+        // 保留当前dubbo线程的上下文
         tmpContext = RpcContext.getContext();
         tmpServerContext = RpcContext.getServerContext();
+        // 恢复创建时的上下文，当回调发生时，RpcContext可能已经更改，当同一线程用于执行另一个RPC调用时，就会发生这种情况。
         RpcContext.restoreContext(storedContext);
         RpcContext.restoreServerContext(storedServerContext);
     };
 
     private BiConsumer<Result, Throwable> afterContext = (appResponse, t) -> {
+        // 恢复当前dubbo线程的上下文
         RpcContext.restoreContext(tmpContext);
         RpcContext.restoreServerContext(tmpServerContext);
     };

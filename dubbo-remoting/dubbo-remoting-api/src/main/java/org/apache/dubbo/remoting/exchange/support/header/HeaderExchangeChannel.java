@@ -130,8 +130,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
                     "Failed to send request " + request + ", cause: The channel " + this + " is closed!");
         }
         // create request.
-        // 构造 request对象，真正传给远端方法的数据，远端方法接收到的数据
-        // 实例化的时候会自动生成一个RequestId
+        // 构造 request对象，真正传给服务提供者的请求数据，服务提供者接收到的数据
         Request req = new Request();
         req.setVersion(Version.getProtocolVersion());
         // 双向通信
@@ -142,7 +141,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         // 当远端方法返回数据的时候会从DefaultFuture.FUTURES中根据Response.id获取到future对象，并把返回的数据放入future对象中。
         DefaultFuture future = DefaultFuture.newFuture(channel, req, timeout, executor);
         try {
-            // 发送数据，不阻塞
+            // 发送请求数据，非阻塞
             channel.send(req);
         } catch (RemotingException e) {
             future.cancel();

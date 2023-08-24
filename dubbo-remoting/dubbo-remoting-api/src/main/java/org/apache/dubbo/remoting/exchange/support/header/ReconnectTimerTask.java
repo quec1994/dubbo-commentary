@@ -43,6 +43,7 @@ public class ReconnectTimerTask extends AbstractTimerTask {
             Long now = now();
 
             // Rely on reconnect timer to reconnect when AbstractClient.doConnect fails to init the connection
+            // AbstractClient.doConnect 初始化链接失败时，依靠重新链接定时器重新链接
             if (!channel.isConnected()) {
                 try {
                     logger.info("Initial connection to " + channel);
@@ -52,6 +53,7 @@ public class ReconnectTimerTask extends AbstractTimerTask {
                 }
             // check pong at client
             } else if (lastRead != null && now - lastRead > idleTimeout) {
+                // 心跳超时，重新链接
                 logger.warn("Reconnect to channel " + channel + ", because heartbeat read idle time out: "
                         + idleTimeout + "ms");
                 try {

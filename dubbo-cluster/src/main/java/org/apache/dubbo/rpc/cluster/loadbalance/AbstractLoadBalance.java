@@ -56,6 +56,7 @@ public abstract class AbstractLoadBalance implements LoadBalance {
             return null;
         }
         if (invokers.size() == 1) {
+            // 如果invoker是否只有1个的话直接返回，不做负载均衡
             return invokers.get(0);
         }
         return doSelect(invokers, url, invocation);

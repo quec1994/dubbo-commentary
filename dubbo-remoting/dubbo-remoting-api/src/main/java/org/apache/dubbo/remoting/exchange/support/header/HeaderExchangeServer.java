@@ -25,11 +25,7 @@ import org.apache.dubbo.common.timer.HashedWheelTimer;
 import org.apache.dubbo.common.utils.Assert;
 import org.apache.dubbo.common.utils.CollectionUtils;
 import org.apache.dubbo.common.utils.NamedThreadFactory;
-import org.apache.dubbo.remoting.Channel;
-import org.apache.dubbo.remoting.ChannelHandler;
-import org.apache.dubbo.remoting.Constants;
-import org.apache.dubbo.remoting.RemotingException;
-import org.apache.dubbo.remoting.RemotingServer;
+import org.apache.dubbo.remoting.*;
 import org.apache.dubbo.remoting.exchange.ExchangeChannel;
 import org.apache.dubbo.remoting.exchange.ExchangeServer;
 import org.apache.dubbo.remoting.exchange.Request;
@@ -42,9 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.Collections.unmodifiableCollection;
 import static org.apache.dubbo.common.constants.CommonConstants.READONLY_EVENT;
-import static org.apache.dubbo.remoting.Constants.HEARTBEAT_CHECK_TICK;
-import static org.apache.dubbo.remoting.Constants.LEAST_HEARTBEAT_DURATION;
-import static org.apache.dubbo.remoting.Constants.TICKS_PER_WHEEL;
+import static org.apache.dubbo.remoting.Constants.*;
 import static org.apache.dubbo.remoting.utils.UrlUtils.getHeartbeat;
 import static org.apache.dubbo.remoting.utils.UrlUtils.getIdleTimeout;
 
@@ -260,7 +254,11 @@ public class HeaderExchangeServer implements ExchangeServer {
     }
 
     private void startIdleCheckTask(URL url) {
-        // NettyServer自己有空闲处理能力
+
+        // 首先判断下层server是否有空闲处理能力
+        // 如果下层server自己有空闲处理能力，就不用开启统一的空闲处理任务了
+
+        // NettyServer自己有空闲处理能力，直接利用的netty的隧道空闲校验能力
 
         if (!server.canHandleIdle()) {
             // 下层server没有空闲处理能力，开启统一校验定时任务
@@ -276,6 +274,5 @@ public class HeaderExchangeServer implements ExchangeServer {
             // 初始化任务和启动定时器
             IDLE_CHECK_TIMER.newTimeout(closeTimerTask, idleTimeoutTick, TimeUnit.MILLISECONDS);
         }
-        // 如果下层server自己有空闲处理能力，就不用开启统一的空闲处理任务了
     }
 }

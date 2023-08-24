@@ -178,7 +178,7 @@ public class RpcUtils {
     }
 
     public static boolean isAsync(URL url, Invocation inv) {
-        // 是否异步操作
+        // 是否异步执行
         boolean isAsync;
 
         if (inv instanceof RpcInvocation) {
@@ -237,8 +237,9 @@ public class RpcUtils {
     }
 
     public static InvokeMode getInvokeMode(URL url, Invocation inv) {
+        // 获取本次远程方法调用执行模式，消费者端有效
+
         if (inv instanceof RpcInvocation) {
-            // 第一次执行的时候一般不会走这个逻辑
             RpcInvocation rpcInvocation = (RpcInvocation) inv;
             if (rpcInvocation.getInvokeMode() != null) {
                 return rpcInvocation.getInvokeMode();
@@ -246,13 +247,13 @@ public class RpcUtils {
         }
 
         if (isReturnTypeFuture(inv)) {
-            // 远端方法执行模式，异步方法返回值
+            // 异步返回值
             return InvokeMode.FUTURE;
         } else if (isAsync(url, inv)) {
-            // 远端方法执行模式，异步操作
+            // 异步执行
             return InvokeMode.ASYNC;
         } else {
-            // 远端方法执行模式，同步
+            // 同步执行
             return InvokeMode.SYNC;
         }
     }

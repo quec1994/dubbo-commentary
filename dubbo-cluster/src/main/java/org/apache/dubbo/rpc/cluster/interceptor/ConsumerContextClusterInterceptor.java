@@ -31,7 +31,7 @@ public class ConsumerContextClusterInterceptor implements ClusterInterceptor, Cl
     @Override
     public void before(AbstractClusterInvoker<?> invoker, Invocation invocation) {
         if (invocation instanceof RpcInvocation) {
-            // 给远程调用信息赋值调用者
+            // 给远程方法调用信息赋值调用者
             ((RpcInvocation) invocation).setInvoker(invoker);
         }
         RpcContext.removeServerContext();

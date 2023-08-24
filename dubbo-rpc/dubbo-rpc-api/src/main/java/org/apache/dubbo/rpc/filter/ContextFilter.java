@@ -116,10 +116,10 @@ public class ContextFilter implements Filter, Filter.Listener {
         }
 
         // 在上下文中放入values.timeout-countdown
-        // attachments._TO，根据倒计时生成的动态超时时间
+        // invocation.attachments._TO，根据倒计时生成的动态超时时间
         long timeout = RpcUtils.getTimeout(invocation, -1);
         if (timeout != -1) {
-            // 倒计时对象
+            // 倒计时对象，默认不会走这个逻辑
             context.set(TIME_COUNTDOWN_KEY, TimeoutCountDown.newCountDown(timeout, TimeUnit.MILLISECONDS));
         }
 

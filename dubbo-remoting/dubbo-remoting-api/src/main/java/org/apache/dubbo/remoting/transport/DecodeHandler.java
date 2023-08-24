@@ -41,17 +41,17 @@ public class DecodeHandler extends AbstractChannelHandlerDelegate {
          */
 
         if (message instanceof Decodeable) {
-            // 反序列化message
+            // 反序列化收到的消息
             decode(message);
         }
 
         if (message instanceof Request) {
-            // 反序列化请求消息里的方法执行参数（Invocation）
+            // 反序列化请求消息里的消息主体（方法执行参数、Invocation）
             decode(((Request) message).getData());
         }
 
         if (message instanceof Response) {
-            // 反序列化响应消息里的方法返回值
+            // 反序列化响应消息里的消息主体（方法返回值）
             decode(((Response) message).getResult());
         }
 

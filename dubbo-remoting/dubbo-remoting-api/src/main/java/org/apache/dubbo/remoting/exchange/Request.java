@@ -42,7 +42,7 @@ public class Request {
     private Object mData;
 
     public Request() {
-        // 生成一个RequestId
+        // 自动生成一个唯一的RequestId，RequestId会被用于绑定接收响应消息的异步返回值Future
         mId = newId();
     }
 
@@ -52,6 +52,7 @@ public class Request {
 
     private static long newId() {
         // getAndIncrement() When it grows to MAX_VALUE, it will grow to MIN_VALUE, and the negative can be used as ID
+        // getAndIncrement() 当它增长到MAX_VALUE时，它将增长到MIN_VALUE，负数可以用作ID
         return INVOKE_ID.getAndIncrement();
     }
 

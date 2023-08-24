@@ -22,70 +22,28 @@ import org.apache.dubbo.common.config.ConfigurationUtils;
 import org.apache.dubbo.common.extension.ExtensionLoader;
 import org.apache.dubbo.common.serialize.support.SerializableClassRegistry;
 import org.apache.dubbo.common.serialize.support.SerializationOptimizer;
-import org.apache.dubbo.common.utils.CollectionUtils;
-import org.apache.dubbo.common.utils.ConcurrentHashSet;
-import org.apache.dubbo.common.utils.ConfigUtils;
-import org.apache.dubbo.common.utils.NetUtils;
-import org.apache.dubbo.common.utils.StringUtils;
+import org.apache.dubbo.common.utils.*;
 import org.apache.dubbo.remoting.Channel;
 import org.apache.dubbo.remoting.RemotingException;
 import org.apache.dubbo.remoting.RemotingServer;
 import org.apache.dubbo.remoting.Transporter;
-import org.apache.dubbo.remoting.exchange.ExchangeChannel;
-import org.apache.dubbo.remoting.exchange.ExchangeClient;
-import org.apache.dubbo.remoting.exchange.ExchangeHandler;
-import org.apache.dubbo.remoting.exchange.ExchangeServer;
-import org.apache.dubbo.remoting.exchange.Exchangers;
+import org.apache.dubbo.remoting.exchange.*;
 import org.apache.dubbo.remoting.exchange.support.ExchangeHandlerAdapter;
-import org.apache.dubbo.rpc.Exporter;
-import org.apache.dubbo.rpc.Invocation;
-import org.apache.dubbo.rpc.Invoker;
-import org.apache.dubbo.rpc.Protocol;
-import org.apache.dubbo.rpc.ProtocolServer;
-import org.apache.dubbo.rpc.Result;
-import org.apache.dubbo.rpc.RpcContext;
-import org.apache.dubbo.rpc.RpcException;
-import org.apache.dubbo.rpc.RpcInvocation;
+import org.apache.dubbo.rpc.*;
 import org.apache.dubbo.rpc.protocol.AbstractProtocol;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 
-import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SEPARATOR;
-import static org.apache.dubbo.common.constants.CommonConstants.GROUP_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.INTERFACE_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.LAZY_CONNECT_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.METHODS_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.PATH_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.STUB_EVENT_KEY;
-import static org.apache.dubbo.common.constants.CommonConstants.VERSION_KEY;
-import static org.apache.dubbo.remoting.Constants.CHANNEL_READONLYEVENT_SENT_KEY;
-import static org.apache.dubbo.remoting.Constants.CLIENT_KEY;
-import static org.apache.dubbo.remoting.Constants.CODEC_KEY;
-import static org.apache.dubbo.remoting.Constants.CONNECTIONS_KEY;
-import static org.apache.dubbo.remoting.Constants.DEFAULT_HEARTBEAT;
-import static org.apache.dubbo.remoting.Constants.DEFAULT_REMOTING_CLIENT;
-import static org.apache.dubbo.remoting.Constants.HEARTBEAT_KEY;
-import static org.apache.dubbo.remoting.Constants.SERVER_KEY;
-import static org.apache.dubbo.rpc.Constants.DEFAULT_REMOTING_SERVER;
-import static org.apache.dubbo.rpc.Constants.DEFAULT_STUB_EVENT;
-import static org.apache.dubbo.rpc.Constants.IS_SERVER_KEY;
-import static org.apache.dubbo.rpc.Constants.STUB_EVENT_METHODS_KEY;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.CALLBACK_SERVICE_KEY;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.DEFAULT_SHARE_CONNECTIONS;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.IS_CALLBACK_SERVICE;
+import static org.apache.dubbo.common.constants.CommonConstants.*;
+import static org.apache.dubbo.remoting.Constants.*;
+import static org.apache.dubbo.rpc.Constants.*;
 import static org.apache.dubbo.rpc.protocol.dubbo.Constants.ON_CONNECT_KEY;
 import static org.apache.dubbo.rpc.protocol.dubbo.Constants.ON_DISCONNECT_KEY;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.OPTIMIZER_KEY;
-import static org.apache.dubbo.rpc.protocol.dubbo.Constants.SHARE_CONNECTIONS_KEY;
+import static org.apache.dubbo.rpc.protocol.dubbo.Constants.*;
 
 
 /**
@@ -308,6 +266,8 @@ public class DubboProtocol extends AbstractProtocol {
         // 当NettyServer接收到请求后，会根据请求中的服务信息，找到服务对应的DubboExporter对象，然后从对象中得到Invoker对象
         // 构造一个Exporter进行服务暴露
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
+        // 请求处理流程：收到请求消息--->转换成invocation--->构建服务key--->exporterMap.get(key)
+        //                  --->exporter--->invoker--->invoker.invoke(invocation)-->调用服务
         exporterMap.addExportMap(key, exporter);
 
         //export an stub service for dispatching event
@@ -324,11 +284,10 @@ public class DubboProtocol extends AbstractProtocol {
             }
         }
 
-        // 开启NettyServer
-        //请求--->invocation--->服务key--->exporterMap.get(key)--->exporter--->invoker--->invoker.invoke(invocation)-->执行服务
+        // 启动NettyServer去监听端口
         openServer(url);
 
-        // 特殊的一些序列化机制，比如kryo提供了注册机制来注册类，提高序列化和反序列化的速度
+        // 定制特殊的一些序列化机制，比如kryo提供了注册机制来注册类，提高序列化和反序列化的速度
         optimizeSerialization(url);
 
         return exporter;
@@ -380,7 +339,7 @@ public class DubboProtocol extends AbstractProtocol {
         ExchangeServer server;
         try {
             // requestHandler是请求处理器，类型为ExchangeHandler
-            // 表示从url的端口接收到请求后，requestHandler来进行处理
+            // 表示从服务器的端口接收到请求消息后，requestHandler来进行处理
             server = Exchangers.bind(url, requestHandler);
         } catch (RemotingException e) {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);
@@ -457,25 +416,30 @@ public class DubboProtocol extends AbstractProtocol {
 
         // whether to share connection
 
-        // connections表示对当前服务提供者建立connections个TCP长连接（Socket连接）
-        // 比如：消费者应用引用了两个服务A和B，这两个服务都部署在了应用C上，如果connections为2，那么消费者应用会与应用C建立4个TCP长连接（Socket连接）
+        // connections表示对当前服务提供者建立服务独占使用的connections个TCP长连接（Socket连接）
+        // 比如：一个消费者引用了两个服务A和B，这两个服务都暴露在了一个提供者C上，如果服务A和B都配置了connections并且都为2，
+        // 那么一个消费者会与一个提供者C建立4个TCP长连接（Socket连接），服务A和B各自独占使用2个TCP长连接
         int connections = url.getParameter(CONNECTIONS_KEY, 0);
 
         // if not configured, connection is shared, otherwise, one connection for one service
         if (connections == 0) {
-            // 如果没有配置connections，那么则取shareConnectionsStr，表示对同一个提供者JVM实例建立的共享TCP长连接（Socket连接）的个数
-            // 如果也没有配置shareConnectionsStr，默认情况下，消费者JVM实例和提供者JVM实例共享一个TCP长连接
-            // 比如：消费者应用引用了两个服务A和B，这两个服务都部署在了应用C上，如果shareConnectionsStr为2，那么消费者应用会与应用C建立2个TCP长连接（Socket连接）
+            // 创建服务间共享使用的client
+
+            // 如果服务没有配置connections，那么则取shareConnectionsStr，表示对同一个提供者JVM实例建立的共享TCP长连接（Socket连接）的个数
+            // 如果也没有配置shareConnectionsStr，默认情况下，消费者JVM实例和提供者JVM实例共享1个TCP长连接
+            // 比如：一个消费者引用了两个服务A和B，这两个服务都暴露在了一个提供者C上，如果shareConnectionsStr为2，
+            // 那么一个消费者会与一个提供者C建立2个TCP长连接（Socket连接），服务A和B共享使用2个TCP长连接
             /*
              * The xml configuration should have a higher priority than properties.
              */
             String shareConnectionsStr = url.getParameter(SHARE_CONNECTIONS_KEY, (String) null);
-            // 如果url参数里没有shareConnectionsStr，取 JVM参数>dubbo.properties文件 里配置的 key 对应的值
+            // 如果url参数里没有shareConnectionsStr，取配置的shareconnections对应值，默认值为 1
             connections = Integer.parseInt(StringUtils.isBlank(shareConnectionsStr) ? ConfigUtils.getProperty(SHARE_CONNECTIONS_KEY,
                     DEFAULT_SHARE_CONNECTIONS) : shareConnectionsStr);
             return getSharedClient(url, connections).toArray(new ExchangeClient[0]);
         } else {
-            // 不然就初始化，在初始化client时会去连接服务端
+            // 创建服务独占使用的client
+
             ExchangeClient[] clients = new ExchangeClient[connections];
             for (int i = 0; i < clients.length; i++) {
                 clients[i] = initClient(url);
@@ -493,15 +457,18 @@ public class DubboProtocol extends AbstractProtocol {
      */
     @SuppressWarnings("unchecked")
     private List<ReferenceCountExchangeClient> getSharedClient(URL url, int connectNum) {
-        // 这个方法返回的是可以共享的client，要么已经生成过了，要么需要重新生成
-        // 对于已经生成过的client，都会存在referenceClientMap中，key为所调用的服务IP+PORT
+        // 这个方法返回的是共享的client，要么已经生成过了，要么需要重新生成，
+        // 对于已经生成过的client，都会存在referenceClientMap中进行缓存，key为所引入的服务提供者的地址（服务器的ip+port），
+        // DubboProtocol是通过Dubbo的SPI机制创建的，相当于是一个单例对象，因此所有的服务refer时访问referenceClientMap是同一个
 
+        // 服务提供者的地址，服务器的ip+port
         String key = url.getAddress();
 
-        // 当前引入的服务提供者的对应ip+port已经存在的clients
+        // 取出缓存中当前引入的服务提供者已经生成好的共享clients
         Object clients = referenceClientMap.get(key);
-        // 根据当前引入的服务提供者对应的ip+port，看看是否已经存在clients了
         if (clients instanceof List) {
+            // 当前引入的服务提供者已经存在共享clients
+
             List<ReferenceCountExchangeClient> typedClients = (List<ReferenceCountExchangeClient>) clients;
             // 检查clients是否全部可用
             if (checkClientCanUse(typedClients)) {
@@ -510,6 +477,7 @@ public class DubboProtocol extends AbstractProtocol {
                 return typedClients;
             }
         }
+        // 当前引入的服务提供者还没生成clients或者部分client失效，重新生成
 
         List<ReferenceCountExchangeClient> typedClients = null;
 
@@ -517,7 +485,7 @@ public class DubboProtocol extends AbstractProtocol {
         synchronized (referenceClientMap) {
             // 死循环
             for (; ; ) {
-                // 重新获取当前引入的服务提供者的对应ip+port已经存在的clients
+                // 重新获取缓存中当前引入的服务提供者已经生成好的clients
                 clients = referenceClientMap.get(key);
 
                 // 看看重新获取的clients是否已经存在了
@@ -530,7 +498,10 @@ public class DubboProtocol extends AbstractProtocol {
                         // 返回已经都可用的client
                         return typedClients;
                     } else {
-                        // 在referenceClientMap放入一个挂起标识，如果有其它线程想创建同一个服务端JVM实例共享的TCP长连接，那么需要等待
+                        // clients全部或部分不可用
+
+                        // 在referenceClientMap放入一个挂起标识，
+                        // 如果有其它线程想创建当前引入的服务提供者的TCP长连接，那么需要等待
                         referenceClientMap.put(key, PENDING_OBJECT);
                         break;
                     }
@@ -543,7 +514,8 @@ public class DubboProtocol extends AbstractProtocol {
                     }
                 } else {
                     // 如果clients不存在，并且不是挂起标识
-                    // 在referenceClientMap放入一个挂起标识，如果有其它线程想创建同一个服务端JVM实例共享的TCP长连接，那么需要等待
+                    // 在referenceClientMap放入一个挂起标识，
+                    // 如果有其它线程想创建当前引入的服务提供者的TCP长连接，那么需要等待
                     referenceClientMap.put(key, PENDING_OBJECT);
                     break;
                 }
@@ -700,14 +672,15 @@ public class DubboProtocol extends AbstractProtocol {
         ExchangeClient client;
         try {
             // connection should be lazy
-            // 连接应该是惰性的
+            // 链接应该是惰性的
             if (url.getParameter(LAZY_CONNECT_KEY, false)) {
+                // 生成惰性client，只保存参数，不会去链接服务端
+                // 在第一次执行远程方法调用时再真正去链接服务端建立连接
                 client = new LazyConnectExchangeClient(url, requestHandler);
 
             } else {
-                // client是在refer的时候生成的，这个时候就已经建立好连接了？
-                // 答案是就是会去建立连接，也是能够理解了，只有连接建立好了才有client和server之分
-                // 先建立连接，在调用方法时再基于这个连接去发送数据
+                // 生成普通client，在生成client时就会去链接服务端建立连接，
+                // 在执行远程方法调用时再基于这个连接去发送数据
                 client = Exchangers.connect(url, requestHandler);
                 // HeaderExchangeClient->NettyClient
                 // NettyClient.handler--->MultiMessageHandler->HeartbeatHandler->AllChannelHandler->DecodeHandler->HeaderExchangeHandler->requestHandler

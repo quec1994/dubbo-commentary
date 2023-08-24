@@ -49,10 +49,12 @@ public class AsyncToSyncInvoker<T> implements Invoker<T> {
 
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
-        // 异步转同步
+        // 异步执行转同步执行
+        // dubbo使用的是非阻塞式远程方法调用，也就是说数据发送的操作是异步的，不会在发送数据的时候等待远端方法执行完成，
+        // 远端方法的执行结果通过异步返回值Future接收，如果本次远程方法调用需要同步执行，在这边会阻塞等待远端方法的执行结果
 
-        // AsyncRpcResult--->CompletableFuture--->DefaultFuure
         Result asyncResult = invoker.invoke(invocation);
+        // AsyncRpcResult->DefaultFuture
 
         try {
             if (InvokeMode.SYNC == ((RpcInvocation) invocation).getInvokeMode()) {
@@ -61,9 +63,9 @@ public class AsyncToSyncInvoker<T> implements Invoker<T> {
                  * must call {@link java.util.concurrent.CompletableFuture#get(long, TimeUnit)} because
                  * {@link java.util.concurrent.CompletableFuture#get()} was proved to have serious performance drop.
                  */
-                // 如果invocation指定是同步的，则阻塞等待结果
-                // AsyncRpcResult.get
+                // 本次远程方法调用是同步执行模式，阻塞等待远端方法的执行结果
                 asyncResult.get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
+                // AsyncRpcResult.get
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

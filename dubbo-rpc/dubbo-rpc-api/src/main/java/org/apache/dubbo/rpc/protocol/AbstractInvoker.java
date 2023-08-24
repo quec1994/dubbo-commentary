@@ -167,7 +167,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
             invocation.addObjectAttachments(contextAttachments);
         }
 
-        // 设置远端方法执行模式
+        // 设置本次调用执行模式
         invocation.setInvokeMode(RpcUtils.getInvokeMode(url, invocation));
         // 设置 Invocation Id
         RpcUtils.attachInvocationIdIfAsync(getUrl(), invocation);
@@ -187,6 +187,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
                 asyncResult = AsyncRpcResult.newDefaultAsyncResult(null, e, invocation);
             } else {
                 if (te instanceof RpcException) {
+                    // 设置成业务异常，业务异常不会触发容错逻辑
                     ((RpcException) te).setCode(RpcException.BIZ_EXCEPTION);
                 }
                 asyncResult = AsyncRpcResult.newDefaultAsyncResult(null, te, invocation);
@@ -200,6 +201,8 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
         } catch (Throwable e) {
             asyncResult = AsyncRpcResult.newDefaultAsyncResult(null, e, invocation);
         }
+
+        // 往上下文中放入异步返回值，异步执行获取的返回值
         RpcContext.getContext().setFuture(new FutureAdapter(asyncResult.getResponseFuture()));
         return asyncResult;
     }
@@ -211,11 +214,10 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
             if(sharedExecutor == null) {
                 sharedExecutor = ExtensionLoader.getExtensionLoader(ExecutorRepository.class).getDefaultExtension().getSharedExecutor();
             }
-            // 无线程执行器，作用是将异步任务转同步执行
-            // 远端方法同步执行时返回无线程执行器，响应消息回调将直接委托给等待响应消息返回的线程，也就是发起调用的线程
+            // 本次远程方法调用是同步执行模式时返回无线程执行器，响应消息将直接委托给等待响应消息返回的线程处理，也就是发起调用的线程处理
             return new ThreadlessExecutor(sharedExecutor);
         } else {
-            // 共享执行器（线程池）
+            // 共享执行器
             return sharedExecutor;
         }
     }

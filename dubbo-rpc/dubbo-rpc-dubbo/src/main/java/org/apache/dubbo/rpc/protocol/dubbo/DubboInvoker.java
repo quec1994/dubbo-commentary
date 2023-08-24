@@ -104,7 +104,7 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
             invocation.put(TIMEOUT_KEY, timeout);
             if (isOneway) {
                 boolean isSent = getUrl().getMethodParameter(methodName, Constants.SENT_KEY, false);
-                // 发送远端方法调用数据
+                // 发送远程方法调用数据
                 currentClient.send(inv, isSent);
                 // 只发送数据，不等待远端方法返回结果，直接生成一个默认的结果，value=null
                 return AsyncRpcResult.newDefaultAsyncResult(invocation);
@@ -112,16 +112,17 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
                 // 获取收到响应数据时的回调执行器
                 ExecutorService executor = getCallbackExecutor(getUrl(), inv);
 
-                // 异步去请求，得到一个CompletableFuture，这里并不会阻塞
+                // 异步执行请求，得到一个异步返回值CompletableFuture，这里不会阻塞等待远端方法执行完成
                 CompletableFuture<AppResponse> appResponseFuture =
                         currentClient.request(inv, timeout, executor).thenApply(obj -> (AppResponse) obj);
 
                 // save for 2.6.x compatibility, for example, TraceFilter in Zipkin uses com.alibaba.xxx.FutureAdapter
                 FutureContext.getContext().setCompatibleFuture(appResponseFuture);
 
-                // AsyncRpcResult只是一个包装类，appResponseFuture才是真正的远端方法返回值容器
+                // AsyncRpcResult只是一个包装类，appResponseFuture才是真正的远端方法执行结果容器
                 // 如果要达到阻塞的效果在外层使用result去控制
                 AsyncRpcResult result = new AsyncRpcResult(appResponseFuture, inv);
+                // 把回调执行器放入异步返回值中，阻塞等待的时候会用到
                 result.setExecutor(executor);
                 return result;
             }

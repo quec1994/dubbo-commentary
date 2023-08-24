@@ -81,6 +81,8 @@ public class ThreadlessExecutor extends AbstractExecutorService {
     /**
      * Waits until there is a task, executes the task and all queued tasks (if there're any). The task is either a normal
      * response or a timeout response.
+     *
+     * <p>等待，直到有任务，执行该任务和所有排队的任务（如果有）。该任务要么是正常响应，要么是超时响应。</p>
      */
     public void waitAndDrain() throws InterruptedException {
         /**
@@ -91,6 +93,12 @@ public class ThreadlessExecutor extends AbstractExecutorService {
          * There's no need to worry that {@link #finished} is not thread-safe. Checking and updating of
          * 'finished' only appear in waitAndDrain, since waitAndDrain is binding to one RPC call (one thread), the call
          * of it is totally sequential.
+         *
+         * 通常，{@link #waitAndDrain()} 只会被调用一次。它只在第一次阻塞响应，一旦响应（任务）到达并执行后waitAndDrain将返回，
+         * 整个请求处理就会结束。对{@link #waitAndDrain()}的后续调用（如果有）会立即返回。
+         *
+         * 不必担心{@link #finished}不是线程安全的。检查和更新finished只出现在waitAndDrain中，
+         * 因为waitAndDrain绑定到一个RPC调用（一个线程），所以它的调用是完全顺序的。
          */
         if (finished) {
             return;

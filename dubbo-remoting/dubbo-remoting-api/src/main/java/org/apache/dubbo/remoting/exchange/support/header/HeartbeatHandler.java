@@ -58,14 +58,14 @@ public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
 
     @Override
     public void sent(Channel channel, Object message) throws RemotingException {
-        // 记录隧道被写入数据的时间
+        // 记录隧道发生数据写入事件的时间
         setWriteTimestamp(channel);
         handler.sent(channel, message);
     }
 
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
-        // 记录隧道被读取数据的时间
+        // 记录隧道发生数据读取事件的时间
         setReadTimestamp(channel);
 
         if (isHeartbeatRequest(message)) {
@@ -105,12 +105,12 @@ public class HeartbeatHandler extends AbstractChannelHandlerDelegate {
     }
 
     private void setReadTimestamp(Channel channel) {
-        // 更新隧道最近一次被读取数据的时间，用于隧道空闲校验
+        // 更新隧道发生数据读取事件的时间，即更新隧道最近一次被读取数据的时间，用于隧道空闲超时校验
         channel.setAttribute(KEY_READ_TIMESTAMP, System.currentTimeMillis());
     }
 
     private void setWriteTimestamp(Channel channel) {
-        // 更新隧道最近一次被写入数据的时间，用于隧道空闲校验
+        // 更新隧道发生数据写入事件的时间，即更新隧道最近一次被写入数据的时间，用于隧道空闲超时校验
         channel.setAttribute(KEY_WRITE_TIMESTAMP, System.currentTimeMillis());
     }
 

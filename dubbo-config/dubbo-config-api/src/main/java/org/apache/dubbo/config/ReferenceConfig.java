@@ -610,7 +610,7 @@ public class ReferenceConfig<T> extends ReferenceConfigBase<T> {
         /*
          * 根据配置计算是否应该引用同一JVM中的服务。默认行为是true。
          * 1. 如果指定了injvm，就使用injvm的值
-         * 2. 如果指定了url，那么假设是一个远程调用
+         * 2. 如果指定了url，那么假设是一个远程方法调用
          * 3. 否则，校验map中的scope对应值
          * 4. 如果没有map中的scope没有值，但在同一JVM中提供了目标服务，则更倾向于进行本地调用，这是默认行为
          */
