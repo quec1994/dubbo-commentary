@@ -67,8 +67,10 @@ public class DubboAnnotationUtils {
 
     /**
      * Resolve the service interface name from @Service annotation attributes.
+     * <p>从@{@link org.apache.dubbo.config.annotation.DubboService }注解的属性中解析服务接口名称。</p>
      * <p/>
      * Note: the service interface class maybe not found locally if is a generic service.
+     * <p>注意：如果是通用服务，则可能在本地找不到服务接口类。</p>
      *
      * @param attributes             annotation attributes of {@link Service @Service}
      * @param defaultInterfaceClass the default class of interface
@@ -76,6 +78,7 @@ public class DubboAnnotationUtils {
      * @throws IllegalStateException if interface name was not found
      */
     public static String resolveInterfaceName(Map<String, Object> attributes, Class<?> defaultInterfaceClass) {
+        // 1. @DubboService注解的interfaceName属性获取
         // 1. get from DubboService.interfaceName()
         String interfaceClassName = AnnotationUtils.getAttribute(attributes, "interfaceName");
         if (StringUtils.hasText(interfaceClassName)) {
@@ -86,6 +89,7 @@ public class DubboAnnotationUtils {
             return interfaceClassName;
         }
 
+        // 2. @DubboService注解的interfaceClass属性获取
         // 2. get from DubboService.interfaceClass()
         Class<?> interfaceClass = AnnotationUtils.getAttribute(attributes, "interfaceClass");
         if (interfaceClass == null || void.class.equals(interfaceClass)) { // default or set void.class for purpose.
@@ -95,11 +99,13 @@ public class DubboAnnotationUtils {
         }
 
         // 3. get from annotation element type, ignore GenericService
+        // 3. 从注解的元素类型上获取，忽略GenericService
         if (interfaceClass == null && defaultInterfaceClass != null  && !GenericService.class.isAssignableFrom(defaultInterfaceClass)) {
             // Find all interfaces from the annotated class
             // To resolve an issue : https://github.com/apache/dubbo/issues/3251
             Class<?>[] allInterfaces = getAllInterfacesForClass(defaultInterfaceClass);
             if (allInterfaces.length > 0) {
+                // 获取实现类上实现的第一个接口
                 interfaceClass = allInterfaces[0];
             }
         }

@@ -53,13 +53,19 @@ public class DubboComponentScanRegistrar implements ImportBeanDefinitionRegistra
     @Override
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
 
-        // 注册DubboDeployApplicationListener
+        // 注册DubboDeployApplicationListener，它实现了ApplicationListener接口，一旦Spring启动完后，就会进行服务暴露与服务引入
         // initialize dubbo beans
         // 初始化 dubbo bean
         DubboSpringInitializer.initialize(registry);
 
+        // 拿到@DubboComponentScan注解所定义的包路径
         Set<String> packagesToScan = getPackagesToScan(importingClassMetadata);
 
+        // 注册ServiceAnnotationPostProcessor，
+        // 它实现了BeanDefinitionRegistryPostProcessor接口，所以在Spring启动时会调用postProcessBeanDefinitionRegistry方法
+        // 该方法会注册DubboBootstrapApplicationListener监听器，一旦Spring启动完后，就会进行服务暴露
+        // 然后会进行扫描，扫描@DubboService注解了的类，
+        // 然后生成BeanDefinition（会生成两个，一个普通的bean，一个ServiceBean），后续的Spring周期中会生成Bean
         registerServiceAnnotationPostProcessor(packagesToScan, registry);
     }
 
@@ -72,10 +78,13 @@ public class DubboComponentScanRegistrar implements ImportBeanDefinitionRegistra
      */
     private void registerServiceAnnotationPostProcessor(Set<String> packagesToScan, BeanDefinitionRegistry registry) {
 
+        // 构造BeanDefinitionBuilder
         BeanDefinitionBuilder builder = rootBeanDefinition(ServiceAnnotationPostProcessor.class);
         builder.addConstructorArgValue(packagesToScan);
         builder.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
+        // 生成BeanDefinition
         AbstractBeanDefinition beanDefinition = builder.getBeanDefinition();
+        // 注册BeanDefinition
         BeanDefinitionReaderUtils.registerWithGeneratedName(beanDefinition, registry);
 
     }

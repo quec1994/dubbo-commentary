@@ -37,7 +37,8 @@ public class DubboConfigConfigurationRegistrar implements ImportBeanDefinitionRe
 
     @Override
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
-        // 注册 DubboDeployApplicationListener
+        // 注册DubboDeployApplicationListener，它实现了ApplicationListener接口，一旦Spring启动完后，就会进行服务暴露与服务引入，
+        // 配置信息的读取和ConfigBean的创建会在开始服务暴露与服务引入时进行
         // initialize dubbo beans
         // 初始化dubbo-bean
         DubboSpringInitializer.initialize(registry);

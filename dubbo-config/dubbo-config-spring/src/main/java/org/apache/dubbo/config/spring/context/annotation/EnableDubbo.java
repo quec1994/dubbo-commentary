@@ -43,6 +43,7 @@ import java.lang.annotation.Target;
 @Documented
 // 触发dubbo的spring初始化器的初始化动作
 @EnableDubboConfig
+// 触发dubbo的spring初始化器的初始化动作，扫描服务接口的实现类
 @DubboComponentScan
 public @interface EnableDubbo {
 

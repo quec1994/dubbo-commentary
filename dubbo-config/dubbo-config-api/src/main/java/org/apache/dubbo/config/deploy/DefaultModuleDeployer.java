@@ -176,7 +176,9 @@ public class DefaultModuleDeployer extends AbstractDeployer<ModuleModel> impleme
             exportServices();
 
             // prepare application instance
+            // 准备应用实例
             // exclude internal module to avoid wait itself
+            // 排除内部模块以避免自身等待
             if (moduleModel != moduleModel.getApplicationModel().getInternalModule()) {
                 applicationDeployer.prepareInternalModule();
             }
@@ -186,39 +188,52 @@ public class DefaultModuleDeployer extends AbstractDeployer<ModuleModel> impleme
             referServices();
 
             // if no async export/refer services, just set started
+            // 如果没有异步 暴露/引用服务，则只启动
             if (asyncExportingFutures.isEmpty() && asyncReferringFutures.isEmpty()) {
+                // 应用级注册
                 // publish module started event
+                // 发布模块启动事件
                 onModuleStarted();
 
                 // register services to registry
+                // 将服务注册到注册中心
                 registerServices();
 
                 // check reference config
+                // 检查引用配置
                 checkReferences();
 
                 // complete module start future after application state changed
+                // 完成模块启动future在应用状态更改后
                 completeStartFuture(true);
             } else {
                 frameworkExecutorRepository.getSharedExecutor().submit(() -> {
                     try {
                         // wait for export finish
+                        // 等待服务暴露完成
                         waitExportFinish();
                         // wait for refer finish
+                        // 等待服务引入完成
                         waitReferFinish();
 
+                        // 应用级注册
                         // publish module started event
+                        // 发布模块启动事件
                         onModuleStarted();
 
                         // register services to registry
+                        // 将服务注册到注册
                         registerServices();
 
                         // check reference config
+                        // 检查引用配置
                         checkReferences();
                     } catch (Throwable e) {
                         logger.warn(CONFIG_FAILED_WAIT_EXPORT_REFER, "", "", "wait for export/refer services occurred an exception", e);
                         onModuleFailed(getIdentifier() + " start failed: " + e, e);
                     } finally {
                         // complete module start future after application state changed
+                        // 完成模块启动future在应用状态更改后
                         completeStartFuture(true);
                     }
                 });

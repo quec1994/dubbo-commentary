@@ -81,7 +81,7 @@ public interface DubboBeanUtils {
         // register ApplicationListeners
         // 注册ApplicationListeners，ApplicationListener会监听Spring容器启动完成事件ContextRefreshedEvent
         // 一旦接收到Spring容器启动完成事件，就会执行onApplicationEvent方法。
-        // DubboDeployApplicationListener就会开始Dubbo的启动流程，进行服务导出与服务引入。
+        // DubboDeployApplicationListener就会开始Dubbo的启动流程，进行服务暴露与服务引入。
         registerInfrastructureBean(registry, DubboDeployApplicationListener.class.getName(), DubboDeployApplicationListener.class);
         registerInfrastructureBean(registry, DubboConfigApplicationListener.class.getName(), DubboConfigApplicationListener.class);
 
