@@ -210,7 +210,7 @@ public class DefaultModuleDeployer extends AbstractDeployer<ModuleModel> impleme
                 frameworkExecutorRepository.getSharedExecutor().submit(() -> {
                     try {
                         // wait for export finish
-                        // 等待服务暴露完成
+                        // 等待服务导出完成
                         waitExportFinish();
                         // wait for refer finish
                         // 等待服务引入完成

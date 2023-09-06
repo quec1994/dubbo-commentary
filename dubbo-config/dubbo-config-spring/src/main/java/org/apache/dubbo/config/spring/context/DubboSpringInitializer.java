@@ -62,7 +62,7 @@ public class DubboSpringInitializer {
         // 查找beanFactory
         ConfigurableListableBeanFactory beanFactory = findBeanFactory(registry);
 
-        // 注册DubboDeployApplicationListener，它实现了ApplicationListener接口，一旦Spring启动完后，就会进行服务暴露与服务引入
+        // 注册DubboDeployApplicationListener，它实现了ApplicationListener接口，一旦Spring启动完后，就会进行服务导出与服务引入
         // init dubbo context
         // 初始化dubbo上下文
         initContext(context, registry, beanFactory);
@@ -153,7 +153,7 @@ public class DubboSpringInitializer {
         context.markAsBound();
         moduleModel.setLifeCycleManagedExternally(true);
 
-        // 注册DubboDeployApplicationListener，它实现了ApplicationListener接口，一旦Spring启动完后，就会进行服务暴露与服务引入
+        // 注册DubboDeployApplicationListener，它实现了ApplicationListener接口，一旦Spring启动完后，就会进行服务导出与服务引入
         // register common beans
         // 注册通用bean
         DubboBeanUtils.registerCommonBeans(registry);
