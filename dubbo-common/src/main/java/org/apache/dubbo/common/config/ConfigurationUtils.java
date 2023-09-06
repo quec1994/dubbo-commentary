@@ -230,6 +230,7 @@ public final class ConfigurationUtils {
 
     /**
      * Search props and extract sub properties.
+     * <p>搜索props并提取子属性。</p>
      * <pre>
      * # properties
      * dubbo.protocol.name=dubbo
@@ -283,7 +284,9 @@ public final class ConfigurationUtils {
 
                     String k = key.substring(prefix.length());
                     // convert camelCase/snake_case to kebab-case
+                    // 将camelCase/snake_case转换为kebab-case
                     String newK = StringUtils.convertToSplitName(k, "-");
+                    // 如果resultMap中对应属性没有值则放入，保证属性值优先级
                     resultMap.putIfAbsent(newK, val);
                     if (!Objects.equals(k, newK)) {
                         resultMap.putIfAbsent(k, val);

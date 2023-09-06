@@ -43,6 +43,7 @@ public class Environment extends LifecycleAdapter implements ApplicationExt {
     public static final String NAME = "environment";
 
     // dubbo properties in classpath
+    // dubbo.properties配置文件中的配置
     private PropertiesConfiguration propertiesConfiguration;
 
     // java system props (-D)
@@ -224,18 +225,31 @@ public class Environment extends LifecycleAdapter implements ApplicationExt {
      * @return
      */
     public List<Map<String, String>> getConfigurationMaps(AbstractConfig config, String prefix) {
+        // 从dubbo的各个配置源获取配置
+        // JAVA系统属性 (-D) -> JAVA系统环境变量 ->
+        //   配置中心 应用 配置 -> 配置中心 公共/默认 配置 ->
+        //   Spring上下文里的应用配置（xml、yaml、注解） -> Spring上下文里的特定类型配置（xml、yaml、注解） ->
+        //   dubbo.properties文件里的配置
+
         // The sequence would be: SystemConfiguration -> EnvironmentConfiguration -> AppExternalConfiguration -> ExternalConfiguration  -> AppConfiguration -> AbstractConfig -> PropertiesConfiguration
 
         List<Map<String, String>> maps = new ArrayList<>();
+        // JAVA系统属性 (-D)
         maps.add(systemConfiguration.getProperties());
+        // JAVA系统环境变量
         maps.add(environmentConfiguration.getProperties());
+        // 配置中心 应用 配置
         maps.add(appExternalConfiguration.getProperties());
+        // 配置中心 公共/默认 配置
         maps.add(externalConfiguration.getProperties());
+        // Spring上下文里的应用配置（xml、yaml、注解）
         maps.add(appConfiguration.getProperties());
         if (config != null) {
             ConfigConfigurationAdapter configurationAdapter = new ConfigConfigurationAdapter(config, prefix);
+            // Spring上下文里的特定类型配置（xml、yaml、注解）
             maps.add(configurationAdapter.getProperties());
         }
+        // dubbo配置（初始为 dubbo.properties文件的配置）
         maps.add(propertiesConfiguration.getProperties());
         return maps;
     }
@@ -246,6 +260,11 @@ public class Environment extends LifecycleAdapter implements ApplicationExt {
      * @return
      */
     public List<Map<String, String>> getConfigurationMaps() {
+        // 从dubbo的各个公共配置源获取配置
+        // JAVA系统属性 (-D) -> JAVA系统环境变量 ->
+        //   配置中心 应用 配置 -> 配置中心 公共/默认 配置 ->
+        //   Spring上下文里的应用配置（xml、yaml、注解） ->
+        //   dubbo.properties文件里的配置
         if (globalConfigurationMaps == null) {
             globalConfigurationMaps = getConfigurationMaps(null, null);
         }

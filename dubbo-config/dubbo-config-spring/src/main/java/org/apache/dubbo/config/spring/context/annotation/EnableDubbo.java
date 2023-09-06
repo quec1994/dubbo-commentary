@@ -41,6 +41,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
 @Documented
+// 触发dubbo的spring初始化器的初始化动作
 @EnableDubboConfig
 @DubboComponentScan
 public @interface EnableDubbo {

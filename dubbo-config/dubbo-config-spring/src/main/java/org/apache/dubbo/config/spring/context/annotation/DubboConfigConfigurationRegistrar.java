@@ -26,6 +26,7 @@ import org.springframework.core.type.AnnotationMetadata;
 
 /**
  * Dubbo {@link AbstractConfig Config} {@link ImportBeanDefinitionRegistrar register}, which order can be configured
+ * <p>Dubbo {@link AbstractConfig Config}  {@link ImportBeanDefinitionRegistrar register}，可以配置哪个顺序</p>
  *
  * @see EnableDubboConfig
  * @see DubboConfigConfiguration
@@ -36,7 +37,9 @@ public class DubboConfigConfigurationRegistrar implements ImportBeanDefinitionRe
 
     @Override
     public void registerBeanDefinitions(AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
+        // 注册 DubboDeployApplicationListener
         // initialize dubbo beans
+        // 初始化dubbo-bean
         DubboSpringInitializer.initialize(registry);
     }
 }

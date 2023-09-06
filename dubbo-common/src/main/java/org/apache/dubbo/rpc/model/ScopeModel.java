@@ -53,6 +53,18 @@ public abstract class ScopeModel implements ExtensionAccessor {
      *     <li>1.2.1</li>
      *     FrameworkModel (index=1) -> ApplicationModel (index=2) -> ModuleModel (index=1, first user module)
      * </ol>
+     *
+     * 内部id用于表示模型树的层次结构，例如：
+     * <ol>
+     *     <li>1</li>
+     * FrameworkModel（索引=1）
+     *     <li>1.2</li>
+     * FrameworkModel（索引=1）->ApplicationModel（索引=2）
+     *     <li>1.2.0</li>
+     * FrameworkModel（索引=1）->ApplicationModel（索引=2）->ModuleModel（索引=0，内部模块）
+     *     <li>1.2.1</li>
+     * FrameworkModel（索引=1）->ApplicationModel（索引=2）->ModuleModel（索引=1，第一个用户模块）
+     * </ol>
      */
     private String internalId;
 

@@ -113,6 +113,11 @@ public abstract class AbstractConfig implements Serializable {
      * <p>
      * <b>NOTE:</b> the model maybe changed during config processing,
      * the extension spi instance needs to be reinitialized after changing the model!
+     *
+     * <p>
+     * 此配置实例的作用域模型。
+     * <p>
+     * <b>注意：</b>模型可能在配置过程中发生了更改，更改模型后需要重新初始化spi实例！
      */
     private transient volatile ScopeModel scopeModel;
 
@@ -356,6 +361,7 @@ public abstract class AbstractConfig implements Serializable {
             return false;
         } else {
             // Extract fieldName only when necessary.
+            // 仅在必要时提取fieldName。
             String fieldName = MethodUtils.extractFieldName(method);
             Field field = FieldUtils.getDeclaredField(obj.getClass(), fieldName);
             return field != null && field.isAnnotationPresent(Nested.class);
@@ -677,11 +683,20 @@ public abstract class AbstractConfig implements Serializable {
 
     /**
      * Dubbo config property override
+     * <p>Dubbo配置属性覆盖</p>
      */
     public void refresh() {
+        /* 从dubbo的各个配置源获取配置的属性信息按优先级进行属性覆盖
+         * JAVA系统属性 (-D) -> JAVA系统环境变量 ->
+         * 配置中心 应用 配置 -> 配置中心 公共/默认 配置 ->
+         * Spring上下文里的应用配置（xml、yaml、注解） -> Spring上下文里的特定类型配置（xml、yaml、注解） ->
+         * dubbo.properties文件里的配置
+         */
         try {
             // check and init before do refresh
+            // 刷新前进行检查和初始化
             preProcessRefresh();
+            // 根据优先级刷新属性值
             refreshWithPrefixes(getPrefixes(), getConfigMode());
         } catch (Exception e) {
             logger.error(COMMON_FAILED_OVERRIDE_FIELD, "", "", "Failed to override field value of config bean: " + this, e);
@@ -697,6 +712,7 @@ public abstract class AbstractConfig implements Serializable {
         List<Map<String, String>> configurationMaps = environment.getConfigurationMaps();
 
         // Search props starts with PREFIX in order
+        // 按顺序搜索props，以PREFIX开头
         String preferredPrefix = null;
         for (String prefix : prefixes) {
             if (ConfigurationUtils.hasSubProperties(configurationMaps, prefix)) {
@@ -707,9 +723,15 @@ public abstract class AbstractConfig implements Serializable {
         if (preferredPrefix == null) {
             preferredPrefix = prefixes.get(0);
         }
+
         // Extract sub props (which key was starts with preferredPrefix)
+        // 提取子props（key以preferredPrefix开头）
+
+        // 从dubbo的各个配置源获取配置的属性信息
         Collection<Map<String, String>> instanceConfigMaps = environment.getConfigurationMaps(this, preferredPrefix);
+        // 按配置源优先级筛选出preferredPrefix的子属性
         Map<String, String> subProperties = ConfigurationUtils.getSubProperties(instanceConfigMaps, preferredPrefix);
+        // 根据preferredPrefix的子属性创建Configuration
         InmemoryConfiguration subPropsConfiguration = new InmemoryConfiguration(subProperties);
 
         if (logger.isDebugEnabled()) {
@@ -727,26 +749,35 @@ public abstract class AbstractConfig implements Serializable {
                 "], extracted props: " + subProperties);
         }
 
+        // 覆盖当前xxxConfigBean的属性
         assignProperties(this, environment, subProperties, subPropsConfiguration, configMode);
 
         // process extra refresh of subclass, e.g. refresh method configs
+        // 处理子类的额外刷新，例如：刷新方法配置
         processExtraRefresh(preferredPrefix, subPropsConfiguration);
     }
 
     private void assignProperties(Object obj, Environment environment, Map<String, String> properties, InmemoryConfiguration configuration, ConfigMode configMode) {
         // if old one (this) contains non-null value, do not override
+        // 如果当前对象的旧属性包含非null值，不重写
         boolean overrideIfAbsent = configMode == ConfigMode.OVERRIDE_IF_ABSENT;
 
         // even if old one (this) contains non-null value, do override
+        // 即使当前对象的旧属性包含非null值，也要覆盖
         boolean overrideAll = configMode == ConfigMode.OVERRIDE_ALL;
 
         // loop methods, get override value and set the new value back to method
+        // 循环方法，获取覆盖值并将新值设置回方法
         List<Method> methods = MethodUtils.getMethods(obj.getClass(), method -> method.getDeclaringClass() != Object.class);
         for (Method method : methods) {
             if (MethodUtils.isSetter(method)) {
+                /* setXxxx 方法 */
+
+                // 提取属性名
                 String propertyName = extractPropertyName(method.getName());
 
                 // if config mode is OVERRIDE_IF_ABSENT and property has set, skip
+                // 如果配置模式为OVERRIDE_if_ABSENT并且属性已设置，则跳过
                 if (overrideIfAbsent && isPropertySet(methods, propertyName)) {
                     continue;
                 }
@@ -760,10 +791,12 @@ public abstract class AbstractConfig implements Serializable {
                     if (StringUtils.hasText(value)
                         && ClassUtils.isTypeMatch(method.getParameterTypes()[0], value)
                         && !isIgnoredAttribute(obj.getClass(), propertyName)) {
+                        // 解析占位符
                         value = environment.resolvePlaceholders(value);
                         if (StringUtils.hasText(value)) {
                             Object arg = ClassUtils.convertPrimitive(ScopeModelUtil.getFrameworkModel(getScopeModel()), method.getParameterTypes()[0], value);
                             if (arg != null) {
+                                // 覆盖
                                 method.invoke(obj, arg);
                             }
                         }
@@ -774,6 +807,8 @@ public abstract class AbstractConfig implements Serializable {
                         ", please make sure every property has getter/setter method provided.");
                 }
             } else if (isParametersSetter(method)) {
+                /* setParameters 方法 */
+
                 String propertyName = extractPropertyName(method.getName());
 
                 String value = StringUtils.trim(configuration.getString(propertyName));
@@ -819,6 +854,8 @@ public abstract class AbstractConfig implements Serializable {
 
                 invokeSetParameters(newMap, obj);
             } else if (isNestedSetter(obj, method)) {
+                /* 从 get/is 方法 */
+
                 try {
                     Class<?> clazz = method.getParameterTypes()[0];
                     Object inner = clazz.getDeclaredConstructor().newInstance();

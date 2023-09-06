@@ -28,6 +28,7 @@ import static org.apache.dubbo.common.constants.LoggerCodeConstants.COMMON_METRI
 
 /**
  * Dispatches events to listeners, and provides ways for listeners to register themselves.
+ * <p>将事件分派给侦听器，并为侦听器提供注册自己的方法。</p>
  */
 public class MetricsEventBus {
 

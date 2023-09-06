@@ -479,15 +479,25 @@ public abstract class AbstractConfigManager extends LifecycleAdapter {
     public abstract void loadConfigs();
 
     public <T extends AbstractConfig> List<T> loadConfigsOfTypeFromProps(Class<T> cls) {
+
+        // 本次加载的配置Bean（不包含已加载过的）
         List<T> tmpConfigs = new ArrayList<>();
+        // 取出dubbo.properties配置文件中的配置
         PropertiesConfiguration properties = environment.getPropertiesConfiguration();
 
         // load multiple configs with id
+        // 根据id加载多个配置
+
+        // 从所有dubbo配置源中搜索并提取指定配置类型的ID集合
         Set<String> configIds = this.getConfigIdsFromProps(cls);
         configIds.forEach(id -> {
+            // 如果还ConfigBean缓存中没有就会去加载，有则跳过本次加载
             if (!this.getConfig(cls, id).isPresent()) {
+                // ConfigBean缓存中没有不存在，也就是没有生成ConfigBean
+
                 T config;
                 try {
+                    // 构造ConfigBean
                     config = createConfig(cls, scopeModel);
                     config.setId(id);
                 } catch (Exception e) {
@@ -497,6 +507,7 @@ public abstract class AbstractConfigManager extends LifecycleAdapter {
                 String key = null;
                 boolean addDefaultNameConfig = false;
                 try {
+                    // 往dubbo属性里添加默认与id相同config name，用于指定name的默认值
                     // add default name config (same as id), e.g. dubbo.protocols.rest.port=1234
                     key = DUBBO + "." + AbstractConfig.getPluralTagName(cls) + "." + id + ".name";
                     if (properties.getProperty(key) == null) {
@@ -512,15 +523,28 @@ public abstract class AbstractConfigManager extends LifecycleAdapter {
                     throw new IllegalStateException("load config failed, id: " + id + ", type:" + cls.getSimpleName());
                 } finally {
                     if (addDefaultNameConfig && key != null) {
+                        // 移除dubbo属性里的config name，
                         properties.remove(key);
                     }
                 }
             }
         });
 
+        // 没有多配置的话就加载单配置，有就不加载了
+        // 多配置就是带有id的配置，比如：
+        //   dubbo.registries.registry1.address=xxx
+        //   dubbo.registries.registry1.port=xxx
+        //   dubbo.registries.registry2.address=xxx
+        //   dubbo.registries.registry2.port=xxx
+        // 单配置就是没有id的配置，比如：
+        //   dubbo.registry.address=xxx
+        //   dubbo.registry.port=xxx
+
         // If none config of the type, try load single config
+        // 如果没有该类型的配置，尝试加载单个配置
         if (this.getConfigs(cls).isEmpty()) {
             // load single config
+            // 加载单个配置
             List<Map<String, String>> configurationMaps = environment.getConfigurationMaps();
             if (ConfigurationUtils.hasSubProperties(configurationMaps, AbstractConfig.getTypePrefix(cls))) {
                 T config;
@@ -547,6 +571,7 @@ public abstract class AbstractConfigManager extends LifecycleAdapter {
 
     /**
      * Search props and extract config ids of specify type.
+     * <p>搜索props并提取指定类型的配置ID。</p>
      * <pre>
      * # properties
      * dubbo.registries.registry1.address=xxx
@@ -563,6 +588,8 @@ public abstract class AbstractConfigManager extends LifecycleAdapter {
      * @return ids of specify config type
      */
     private Set<String> getConfigIdsFromProps(Class<? extends AbstractConfig> clazz) {
+        // 搜索dubbo配置并提取指定配置类型的ID
+
         String prefix = CommonConstants.DUBBO + "." + AbstractConfig.getPluralTagName(clazz) + ".";
         return ConfigurationUtils.getSubIds(environment.getConfigurationMaps(), prefix);
     }
@@ -571,6 +598,7 @@ public abstract class AbstractConfigManager extends LifecycleAdapter {
     protected <T extends AbstractConfig> void checkDefaultAndValidateConfigs(Class<T> configType) {
         try {
             if (shouldAddDefaultConfig(configType)) {
+                /* 必要配置，创建一个空的，属性信息从各个配置源中取 */
                 T config = createConfig(configType, scopeModel);
                 config.refresh();
                 if (!isNeedValidation(config) || config.isValid()) {
@@ -584,6 +612,7 @@ public abstract class AbstractConfigManager extends LifecycleAdapter {
         }
 
         // validate configs
+        // 验证配置
         Collection<T> configs = this.getConfigs(configType);
         if (getConfigValidator() != null) {
             for (T config : configs) {
@@ -592,6 +621,7 @@ public abstract class AbstractConfigManager extends LifecycleAdapter {
         }
 
         // check required default
+        // 检查必需的默认值
         if (isRequired(configType) && configs.isEmpty()) {
             throw new IllegalStateException("Default config not found for " + configType.getSimpleName());
         }
@@ -620,12 +650,15 @@ public abstract class AbstractConfigManager extends LifecycleAdapter {
 
     /**
      * The configuration that does not affect the main process is not necessary.
+     * <p>不影响主进程的配置是不必要的。</p>
      *
      * @param clazz
      * @param <T>
      * @return
      */
     protected <T extends AbstractConfig> boolean isRequired(Class<T> clazz) {
+        /* 必要配置，影响主进程的配置 */
+
         if (clazz == RegistryConfig.class ||
                 clazz == MetadataReportConfig.class ||
                 clazz == MonitorConfig.class ||
@@ -638,6 +671,7 @@ public abstract class AbstractConfigManager extends LifecycleAdapter {
 
     private <T extends AbstractConfig> boolean shouldAddDefaultConfig(Class<T> clazz) {
         // Configurations that are not required will not be automatically added to the default configuration
+        // 不需要的配置不会自动添加到默认配置中
         if (!isRequired(clazz)) {
             return false;
         }

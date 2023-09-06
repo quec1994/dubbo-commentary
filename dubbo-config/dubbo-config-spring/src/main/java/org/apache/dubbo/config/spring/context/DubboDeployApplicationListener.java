@@ -151,10 +151,12 @@ public class DubboDeployApplicationListener implements ApplicationListener<Appli
         // start module
         Future future = null;
         synchronized (singletonMutex) {
+            // 启动dubbo
             future = deployer.start();
         }
 
         // if the module does not start in background, await finish
+        // 如果模块不是配置的后台启动，等待完成
         if (!deployer.isBackground()) {
             try {
                 future.get();

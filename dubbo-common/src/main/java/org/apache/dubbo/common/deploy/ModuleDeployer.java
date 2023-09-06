@@ -48,6 +48,7 @@ public interface ModuleDeployer extends Deployer<ModuleModel> {
 
     /**
      * Whether start in background, do not await finish
+     * <p>无论是在后台启动，都不等待完成</p>
      */
     boolean isBackground();
 }

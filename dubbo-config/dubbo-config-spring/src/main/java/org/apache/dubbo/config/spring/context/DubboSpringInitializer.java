@@ -49,17 +49,22 @@ public class DubboSpringInitializer {
     public static void initialize(BeanDefinitionRegistry registry) {
 
         // Spring ApplicationContext may not ready at this moment (e.g. load from xml), so use registry as key
+        // Spring ApplicationContext 现在可能还没有准备好（例如从xml加载），所以使用注册表作为键
         if (contextMap.putIfAbsent(registry, new DubboSpringInitContext()) != null) {
             return;
         }
 
         // prepare context and do customize
+        // 准备上下文并进行自定义
         DubboSpringInitContext context = contextMap.get(registry);
 
         // find beanFactory
+        // 查找beanFactory
         ConfigurableListableBeanFactory beanFactory = findBeanFactory(registry);
 
+        // 注册DubboDeployApplicationListener
         // init dubbo context
+        // 初始化dubbo上下文
         initContext(context, registry, beanFactory);
     }
 
@@ -103,23 +108,28 @@ public class DubboSpringInitializer {
         context.setBeanFactory(beanFactory);
 
         // customize context, you can change the bind module model via DubboSpringInitCustomizer SPI
+        // 自定义上下文，可以通过DubboSpringInitCustomizer SPI更改绑定模块模型
         customize(context);
 
         // init ModuleModel
+        // 初始化模块模型
         ModuleModel moduleModel = context.getModuleModel();
         if (moduleModel == null) {
             ApplicationModel applicationModel;
             if (findContextForApplication(ApplicationModel.defaultModel()) == null) {
                 // first spring context use default application instance
+                // 第一个spring上下文使用默认应用实例
                 applicationModel = ApplicationModel.defaultModel();
                 logger.info("Use default application: " + safeGetModelDesc(applicationModel));
             } else {
                 // create a new application instance for later spring context
+                // 后面的spring上下文创建一个新的应用实例
                 applicationModel = FrameworkModel.defaultModel().newApplication();
                 logger.info("Create new application: " + safeGetModelDesc(applicationModel));
             }
 
             // init ModuleModel
+            // 初始化模块模型
             moduleModel = applicationModel.getDefaultModule();
             context.setModuleModel(moduleModel);
             logger.info("Use default module model of target application: " + safeGetModelDesc(moduleModel));
@@ -129,18 +139,24 @@ public class DubboSpringInitializer {
         logger.info("Bind " + safeGetModelDesc(moduleModel) + " to spring container: " + ObjectUtils.identityToString(registry));
 
         // set module attributes
+        // 设置模块属性
         if (context.getModuleAttributes().size() > 0) {
             context.getModuleModel().getAttributes().putAll(context.getModuleAttributes());
         }
 
         // bind dubbo initialization context to spring context
+        // 将dubbo初始化上下文绑定到spring上下文
         registerContextBeans(beanFactory, context);
 
         // mark context as bound
+        // 将上下文标记为已绑定
         context.markAsBound();
         moduleModel.setLifeCycleManagedExternally(true);
 
+        // 注册启动dubbo的ApplicationListener
+
         // register common beans
+        // 注册通用bean
         DubboBeanUtils.registerCommonBeans(registry);
     }
 
@@ -184,14 +200,17 @@ public class DubboSpringInitializer {
     private static void customize(DubboSpringInitContext context) {
 
         // find initialization customizers
+        // 查找初始化自定义程序
         Set<DubboSpringInitCustomizer> customizers = FrameworkModel.defaultModel()
             .getExtensionLoader(DubboSpringInitCustomizer.class)
             .getSupportedExtensionInstances();
         for (DubboSpringInitCustomizer customizer : customizers) {
+            // 自定义逻辑处理上下文
             customizer.customize(context);
         }
 
         // load customizers in thread local holder
+        // 在线程本地保持器中加载自定义程序
         DubboSpringInitCustomizerHolder customizerHolder = DubboSpringInitCustomizerHolder.get();
         customizers = customizerHolder.getCustomizers();
         for (DubboSpringInitCustomizer customizer : customizers) {

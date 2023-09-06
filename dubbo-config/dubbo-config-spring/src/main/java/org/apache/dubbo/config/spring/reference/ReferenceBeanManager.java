@@ -153,6 +153,8 @@ public class ReferenceBeanManager implements ApplicationContextAware {
 
     /**
      * NOTE: This method should only call after all dubbo config beans and all property resolvers is loaded.
+     * <p>
+     * 注意：此方法应仅在加载所有dubbo-config-bean和所有属性解析器之后调用。
      *
      * @param referenceBean
      * @throws Exception

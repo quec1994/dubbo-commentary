@@ -401,6 +401,9 @@ public interface MethodUtils {
      * Extract fieldName from set/get/is method. if it's not a set/get/is method, return empty string.
      * If method equals get/is/getClass/getObject, also return empty string.
      *
+     * <p>从set/get/is方法中提取fieldName。如果不是set/get/is方法，则返回空字符串。 </p>
+     * <p>如果方法等于get/is/getClass/getObject，也返回空字符串。</p>
+     *
      * @param method method
      * @return fieldName
      */

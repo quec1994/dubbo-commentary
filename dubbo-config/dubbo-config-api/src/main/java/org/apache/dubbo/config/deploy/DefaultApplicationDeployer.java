@@ -205,6 +205,7 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
             return;
         }
         // Ensure that the initialization is completed when concurrent calls
+        // 确保在并发调用时完成初始化
         synchronized (startLock) {
             if (initialized) {
                 return;
@@ -212,12 +213,19 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
             onInitialize();
 
             // register shutdown hook
+            // 注册关闭挂钩
             registerShutdownHook();
 
+            // 加载配置中心Bean，并拉取配置中心数据
+            // 加载的配置文件属性：applications、config-center、registries
             startConfigCenter();
 
+            // 加载配置文件中的配置信息
+            // 加载的配置文件属性：applications、monitors、metrics、tracing、protocols、registries、metadata-report
             loadApplicationConfigs();
 
+            // 初始化模块部署器
+            // 加载的配置文件属性：providers、consumers、modules
             initModuleDeployers();
 
 
@@ -242,9 +250,12 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
 
     private void initModuleDeployers() {
         // make sure created default module
+        // 确保创建了默认模块
         applicationModel.getDefaultModule();
         // deployer initialize
+        // 初始化deployer
         for (ModuleModel moduleModel : applicationModel.getModuleModels()) {
+            // 初始化模块部署器
             moduleModel.getDeployer().initialize();
         }
     }
@@ -256,6 +267,8 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
     private void startConfigCenter() {
 
         // load application config
+        // 加载用户配置的应用程序配置
+        // load dubbo.applications.xxx
         configManager.loadConfigsOfTypeFromProps(ApplicationConfig.class);
 
         // try set model name
@@ -264,15 +277,21 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
         }
 
         // load config centers
+        // 加载用户配置的注册中心配置
+        // load dubbo.config-center.xxx
         configManager.loadConfigsOfTypeFromProps(ConfigCenterConfig.class);
 
+        // 当没有显式指定配置中心时使用注册中心作为默认配置中心
+        // load dubbo.registries.xxx
         useRegistryAsConfigCenterIfNecessary();
 
         // check Config Center
         Collection<ConfigCenterConfig> configCenters = configManager.getConfigCenters();
         if (CollectionUtils.isEmpty(configCenters)) {
+            // 如果还是没有注册中心，创建一个空的
             ConfigCenterConfig configCenterConfig = new ConfigCenterConfig();
             configCenterConfig.setScopeModel(applicationModel);
+            // 从 JAVA系统属性 (-D) -> JAVA系统环境变量 -> dubbo.properties文件 获取属性信息
             configCenterConfig.refresh();
             ConfigValidationUtils.validateConfigCenterConfig(configCenterConfig);
             if (configCenterConfig.isValid()) {
@@ -281,6 +300,7 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
             }
         } else {
             for (ConfigCenterConfig configCenterConfig : configCenters) {
+                // 根据 JAVA系统属性 (-D) -> JAVA系统环境变量 -> dubbo.properties文件 属性配置刷新属性
                 configCenterConfig.refresh();
                 ConfigValidationUtils.validateConfigCenterConfig(configCenterConfig);
             }
@@ -290,11 +310,16 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
             CompositeDynamicConfiguration compositeDynamicConfiguration = new CompositeDynamicConfiguration();
             for (ConfigCenterConfig configCenter : configCenters) {
                 // Pass config from ConfigCenterBean to environment
+                // 将配置从配置中心Bean传递到环境
+                // 如果是远程配置中心默认是空的
                 environment.updateExternalConfigMap(configCenter.getExternalConfiguration());
                 environment.updateAppExternalConfigMap(configCenter.getAppExternalConfiguration());
 
                 // Fetch config from remote config center
-                compositeDynamicConfiguration.addConfiguration(prepareEnvironment(configCenter));
+                // 从远程配置中心获取配置
+                compositeDynamicConfiguration.addConfiguration(
+                    // 获取远程配置中心的配置（不订阅，只在启动的时候生效）
+                    prepareEnvironment(configCenter));
             }
             environment.setDynamicConfiguration(compositeDynamicConfiguration);
         }
@@ -334,9 +359,11 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
      * For compatibility purpose, use registry as the default config center when
      * there's no config center specified explicitly and
      * useAsConfigCenter of registryConfig is null or true
+     * <p>出于兼容性目的，当没有显式指定配置中心并且registryConfig的useAsConfigCenter为null或true时，使用registry作为默认配置中心</p>
      */
     private void useRegistryAsConfigCenterIfNecessary() {
         // we use the loading status of DynamicConfiguration to decide whether ConfigCenter has been initiated.
+        // 我们使用DynamicConfiguration的加载状态来决定ConfigCenter是否已经启动。
         if (environment.getDynamicConfiguration().isPresent()) {
             return;
         }
@@ -346,10 +373,13 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
         }
 
         // load registry
+        // 加载注册中心
+        // load dubbo.registries.xxx
         configManager.loadConfigsOfTypeFromProps(RegistryConfig.class);
-
+        // 获取配置的注册中心
         List<RegistryConfig> defaultRegistries = configManager.getDefaultRegistries();
         if (defaultRegistries.size() > 0) {
+            // 将注册中心转换成配置中心，并注册进configManager中
             defaultRegistries
                 .stream()
                 .filter(this::isUsedRegistryAsConfigCenter)
@@ -835,6 +865,7 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
             ApplicationModel applicationModel = getApplicationModel();
 
             if (StringUtils.isNotEmpty(configCenter.getConfigFile())) {
+                // 配置中心 公共/默认 配置
                 String configContent = dynamicConfiguration.getProperties(configCenter.getConfigFile(), configCenter.getGroup());
                 if (StringUtils.isNotEmpty(configContent)) {
                     logger.info(String.format("Got global remote configuration from config center with key-%s and group-%s: \n %s", configCenter.getConfigFile(), configCenter.getGroup(), configContent));
@@ -844,6 +875,7 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
                 String appConfigFile = null;
                 if (isNotEmpty(appGroup)) {
                     appConfigFile = isNotEmpty(configCenter.getAppConfigFile()) ? configCenter.getAppConfigFile() : configCenter.getConfigFile();
+                    // 配置中心 应用 配置
                     appConfigContent = dynamicConfiguration.getProperties(appConfigFile, appGroup);
                     if (StringUtils.isNotEmpty(appConfigContent)) {
                         logger.info(String.format("Got application specific remote configuration from config center with key %s and group %s: \n %s", appConfigFile, appGroup, appConfigContent));
@@ -857,6 +889,7 @@ public class DefaultApplicationDeployer extends AbstractDeployer<ApplicationMode
                     environment.updateAppExternalConfigMap(appConfigMap);
 
                     // Add metrics
+                    // 添加指标
                     MetricsEventBus.publish(ConfigCenterEvent.toChangeEvent(applicationModel, configCenter.getConfigFile(), configCenter.getGroup(),
                         configCenter.getProtocol(), ConfigChangeType.ADDED.name(), configMap.size()));
                     if (isNotEmpty(appGroup)) {

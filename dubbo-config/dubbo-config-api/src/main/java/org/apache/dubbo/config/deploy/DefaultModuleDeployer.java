@@ -113,23 +113,29 @@ public class DefaultModuleDeployer extends AbstractDeployer<ModuleModel> impleme
             return;
         }
         // Ensure that the initialization is completed when concurrent calls
+        // 确保在并发调用时完成初始化
         synchronized (this) {
             if (initialized) {
                 return;
             }
             onInitialize();
 
+            // 加载配置信息
+            // 加载的配置文件属性：providers、consumers、modules
             loadConfigs();
 
             // read ModuleConfig
+            // 读取模块配置
             ModuleConfig moduleConfig = moduleModel.getConfigManager().getModule().orElseThrow(() -> new IllegalStateException("Default module config is not initialized"));
             exportAsync = Boolean.TRUE.equals(moduleConfig.getExportAsync());
             referAsync = Boolean.TRUE.equals(moduleConfig.getReferAsync());
 
             // start in background
+            // 在后台启动
             background = moduleConfig.getBackground();
             if (background == null) {
                 // compatible with old usages
+                // 与旧用法兼容
                 background = isExportBackground() || isReferBackground();
             }
 
@@ -143,8 +149,10 @@ public class DefaultModuleDeployer extends AbstractDeployer<ModuleModel> impleme
     @Override
     public Future start() throws IllegalStateException {
         // initialize，maybe deadlock applicationDeployer lock & moduleDeployer lock
+        // 初始化，可能出现死锁在applicationDeployer锁和moduleDeployer锁之间
         applicationDeployer.initialize();
 
+        // 启动dubbo
         return startSync();
     }
 
@@ -164,6 +172,7 @@ public class DefaultModuleDeployer extends AbstractDeployer<ModuleModel> impleme
             initialize();
 
             // export services
+            // 暴露服务
             exportServices();
 
             // prepare application instance
@@ -173,6 +182,7 @@ public class DefaultModuleDeployer extends AbstractDeployer<ModuleModel> impleme
             }
 
             // refer services
+            // 引用服务
             referServices();
 
             // if no async export/refer services, just set started

@@ -69,6 +69,7 @@ public interface DubboBeanUtils {
         registerInfrastructureBean(registry, ReferenceBeanManager.BEAN_NAME, ReferenceBeanManager.class);
 
         // Since 2.5.7 Register @Reference Annotation Bean Processor as an infrastructure Bean
+        // 自2.5.7起，将@Reference Annotation Bean处理器注册为基础结构Bean
         registerInfrastructureBean(registry, ReferenceAnnotationBeanPostProcessor.BEAN_NAME,
             ReferenceAnnotationBeanPostProcessor.class);
 
@@ -78,17 +79,23 @@ public interface DubboBeanUtils {
             DubboConfigAliasPostProcessor.class);
 
         // register ApplicationListeners
+        // 注册ApplicationListeners，ApplicationListener会监听Spring容器启动完成事件ContextRefreshedEvent
+        // 一旦接收到Spring容器启动完成事件，就会执行onApplicationEvent方法。
+        // DubboDeployApplicationListener就会开始Dubbo的启动流程，进行服务导出与服务引入。
         registerInfrastructureBean(registry, DubboDeployApplicationListener.class.getName(), DubboDeployApplicationListener.class);
         registerInfrastructureBean(registry, DubboConfigApplicationListener.class.getName(), DubboConfigApplicationListener.class);
 
         // Since 2.7.6 Register DubboConfigDefaultPropertyValueBeanPostProcessor as an infrastructure Bean
+        // 自2.7.6起，将DubboConfigDefaultPropertyValueBeanPostProcessor注册为基础结构Bean
         registerInfrastructureBean(registry, DubboConfigDefaultPropertyValueBeanPostProcessor.BEAN_NAME,
             DubboConfigDefaultPropertyValueBeanPostProcessor.class);
 
         // Dubbo config initializer
+        // Dubbo配置初始值设定项
         registerInfrastructureBean(registry, DubboConfigBeanInitializer.BEAN_NAME, DubboConfigBeanInitializer.class);
 
         // register infra bean if not exists later
+        // 如果后面没有东西了，注册 infra bean
         registerInfrastructureBean(registry, DubboInfraBeanRegisterPostProcessor.BEAN_NAME, DubboInfraBeanRegisterPostProcessor.class);
     }
 

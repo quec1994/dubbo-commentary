@@ -50,11 +50,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 
 /**
- *
  * Dubbo config bean initializer.
- *
+ * <p>
+ * Dubbo-config-bean初始值设定项。
+ * <p>
  * NOTE: Dubbo config beans MUST be initialized after registering all BeanPostProcessors,
  * that is after the AbstractApplicationContext#registerBeanPostProcessors() method.
+ * <p>
+ * 注意：Dubbo-config-bean必须在注册所有BeanPostProcessors之后进行初始化，
+ * 即在 AbstractApplicationContext#registerBeanPostProcessor() 方法之后。
  */
 public class DubboConfigBeanInitializer implements BeanFactoryAware, InitializingBean {
 
@@ -99,10 +103,15 @@ public class DubboConfigBeanInitializer implements BeanFactoryAware, Initializin
      * Initializes there Dubbo's Config Beans before @Reference bean autowiring
      */
     private void prepareDubboConfigBeans() {
+        // 从spring Bean工厂取出dubbo相关的Config Bean，并注册进ConfigManager中，确保所有这些配置bean都已初始化并注册到ConfigManager
+        // 比如通过spring @Bean 注解放入spring bean工厂的配置
+
         logger.info("loading dubbo config beans ...");
 
         //Make sure all these config beans are initialed and registered to ConfigManager
+        // 确保所有这些配置bean都已初始化并注册到ConfigManager
         // load application config beans
+        // 加载应用程序配置bean
         loadConfigBeansOfType(ApplicationConfig.class, configManager);
         loadConfigBeansOfType(RegistryConfig.class, configManager);
         loadConfigBeansOfType(ProtocolConfig.class, configManager);
@@ -114,6 +123,7 @@ public class DubboConfigBeanInitializer implements BeanFactoryAware, Initializin
         loadConfigBeansOfType(SslConfig.class, configManager);
 
         // load module config beans
+        // 加载模块配置bean
         loadConfigBeansOfType(ModuleConfig.class, moduleModel.getConfigManager());
         loadConfigBeansOfType(ProviderConfig.class, moduleModel.getConfigManager());
         loadConfigBeansOfType(ConsumerConfig.class, moduleModel.getConfigManager());
@@ -133,6 +143,7 @@ public class DubboConfigBeanInitializer implements BeanFactoryAware, Initializin
         for (String beanName : beanNames) {
             AbstractConfig configBean = beanFactory.getBean(beanName, configClass);
             // Register config bean here, avoid relying on unreliable @PostConstruct init method
+            // 在这里注册配置bean，避免依赖不可靠的@PostConstruct init方法
             configManager.addConfig(configBean);
         }
     }

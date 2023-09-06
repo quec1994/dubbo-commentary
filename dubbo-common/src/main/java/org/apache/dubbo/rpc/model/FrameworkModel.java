@@ -39,6 +39,7 @@ import java.util.stream.Collectors;
 
 /**
  * Model of dubbo framework, it can be shared with multiple applications.
+ * <p>dubbo框架的模型，它可以与多个应用程序共享。</p>
  */
 public class FrameworkModel extends ScopeModel {
 
@@ -170,7 +171,11 @@ public class FrameworkModel extends ScopeModel {
      * During destroying the default FrameworkModel, the FrameworkModel.defaultModel() or ApplicationModel.defaultModel()
      * will return a broken model, maybe cause unpredictable problem.
      * Recommendation: Avoid using the default model as much as possible.
-     * @return the global default FrameworkModel
+     * <p>在销毁默认FrameworkModel期间，FrameworkModel.defaultModel()或ApplicationModel.defaultMode()将返回一个损坏的模型，
+     * 这可能会导致不可预测的问题。</p>
+     * <p>建议：尽可能避免使用默认模型。</p>
+     *
+     * @return the global default FrameworkModel 全局默认FrameworkModel
      */
     public static FrameworkModel defaultModel() {
         FrameworkModel instance = defaultInstance;
@@ -189,6 +194,7 @@ public class FrameworkModel extends ScopeModel {
 
     /**
      * Get all framework model instances
+     *
      * @return
      */
     public static List<FrameworkModel> getAllInstances() {
@@ -216,6 +222,7 @@ public class FrameworkModel extends ScopeModel {
 
     /**
      * Get or create default application model
+     *
      * @return
      */
     public ApplicationModel defaultApplication() {
@@ -267,7 +274,7 @@ public class FrameworkModel extends ScopeModel {
 
     /**
      * Protocols are special resources that need to be destroyed as soon as possible.
-     *
+     * <p>
      * Since connections inside protocol are not classified by applications, trying to destroy protocols in advance might only work for singleton application scenario.
      */
     void tryDestroyProtocols() {

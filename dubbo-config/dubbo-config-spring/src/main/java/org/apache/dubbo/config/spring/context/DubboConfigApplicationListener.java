@@ -33,6 +33,7 @@ import org.springframework.context.ApplicationListener;
 
 /**
  * An ApplicationListener to load config beans
+ * <p>用于加载配置bean的ApplicationListener</p>
  */
 public class DubboConfigApplicationListener implements ApplicationListener<DubboConfigInitEvent>, ApplicationContextAware {
 
@@ -55,6 +56,8 @@ public class DubboConfigApplicationListener implements ApplicationListener<Dubbo
         if (nullSafeEquals(applicationContext, event.getSource())) {
             // It's expected to be notified at org.springframework.context.support.AbstractApplicationContext.registerListeners(),
             // before loading non-lazy singleton beans. At this moment, all BeanFactoryPostProcessor have been processed,
+            // 预期在org.springframework.context.support.AbstractApplicationContext.registerListeners()上已被通知，
+            // 在加载非惰性单例bean之前。此时所有BeanFactoryPostProcessor都已处理完毕，
             if (initialized.compareAndSet(false, true)) {
                 initDubboConfigBeans();
             }
@@ -63,6 +66,7 @@ public class DubboConfigApplicationListener implements ApplicationListener<Dubbo
 
     private void initDubboConfigBeans() {
         // load DubboConfigBeanInitializer to init config beans
+        // 加载DubboConfigBeanInitializer以初始化配置bean
         if (applicationContext.containsBean(DubboConfigBeanInitializer.BEAN_NAME)) {
             applicationContext.getBean(DubboConfigBeanInitializer.BEAN_NAME, DubboConfigBeanInitializer.class);
         } else {
@@ -70,6 +74,7 @@ public class DubboConfigApplicationListener implements ApplicationListener<Dubbo
         }
 
         // All infrastructure config beans are loaded, initialize dubbo here
+        // 所有基础设施配置bean都已加载，请在此处初始化dubbo
         moduleModel.getDeployer().prepare();
     }
 
