@@ -61,8 +61,17 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
     private final ConsumerModel consumerModel;
     private final FrameworkStatusReportService reportService;
 
+    /**
+     * 用来记录接口级ClusterInvoker
+     */
     private volatile ClusterInvoker<T> invoker;
+    /**
+     * 用来记录应用级的ClusterInvoker
+     */
     private volatile ClusterInvoker<T> serviceDiscoveryInvoker;
+    /**
+     * 用来记录当前使用的ClusterInvoker，要么是接口级，要么应用级
+     */
     private volatile ClusterInvoker<T> currentAvailableInvoker;
     private volatile MigrationStep step;
     private volatile MigrationRule rule;
@@ -273,14 +282,25 @@ public class MigrationInvoker<T> implements MigrationClusterInvoker<T> {
 
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
+        // currentAvailableInvoker要么是接口级ClusterInvoker，要么是应用级ClusterInvoker
         if (currentAvailableInvoker != null) {
             if (step == APPLICATION_FIRST) {
+
+                // 在同时支持接口级和应用级的情况下，
+                // 如果promotion小于100，则每次调用时，生成一个100以内的随机数，
+                // 如果随机数大于promotion，则走接口级ClusterInvoker进行服务调用
+                // 表示支持部分走接口级调用，部分走应用级调用，看随机数
+                // promotion默认等于100，所以默认不会支持部分
+
                 // call ratio calculation based on random value
+                // 基于随机值的呼叫率计算
                 if (promotion < 100 && ThreadLocalRandom.current().nextDouble(100) > promotion) {
                     // fall back to interface mode
+                    // 回退到接口级模式
                     return invoker.invoke(invocation);
                 }
                 // check if invoker available for each time
+                // 每次都检查invoker是否可用
                 return decideInvoker().invoke(invocation);
             }
             return currentAvailableInvoker.invoke(invocation);

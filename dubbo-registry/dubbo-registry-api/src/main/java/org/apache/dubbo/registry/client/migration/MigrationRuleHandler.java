@@ -69,17 +69,24 @@ public class MigrationRuleHandler<T> {
         }
         MigrationStep originStep = currentStep;
 
+        // 如果step发生了改变，或者step没有变化但是threshold发生了变化，则判断到底使用什么级别的服务提供者（接口还是应用）
+        // 比如step本来是APPLICATION_FIRST，现在改为了FORCE_APPLICATION，就表示当前消费者应用在使用当前服务时，只使用应用级地址了，那就需要销毁之前的接口级Invoker，从而释放一些所占用的资源
         if ((currentStep == null || currentStep != step) || !currentThreshold.equals(threshold)) {
             boolean success = true;
             switch (step) {
                 case APPLICATION_FIRST:
+                    // 先进行接口级服务引入得到对应的ClusterInvoker并赋值给invoker属性
+                    // 再进行应用级服务引入得到对应的ClusterInvoker并赋值给serviceDiscoveryInvoker属性
+                    // 最后再根据两者的数量判断到底用哪个，并且把确定的ClusterInvoker赋值给currentAvailableInvoker属性
                     migrationInvoker.migrateToApplicationFirstInvoker(newRule);
                     break;
                 case FORCE_APPLICATION:
+                    // 只进行应用级服务引入得到对应的ClusterInvoker并赋值给serviceDiscoveryInvoker和currentAvailableInvoker属性
                     success = migrationInvoker.migrateToForceApplicationInvoker(newRule);
                     break;
                 case FORCE_INTERFACE:
                 default:
+                    // 只进行接口级服务引入得到对应的ClusterInvoker并赋值给调用程序和currentAvailableInvoker属性
                     success = migrationInvoker.migrateToForceInterfaceInvoker(newRule);
             }
 
